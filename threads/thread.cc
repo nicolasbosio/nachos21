@@ -254,7 +254,7 @@ Thread::Sleep()
     DEBUG('t', "Sleeping thread \"%s\"\n", GetName());
 
     Thread *nextThread;
-    if(selfDestruct)
+    if(!selfDestruct)
         status = BLOCKED;
     while ((nextThread = scheduler->FindNextToRun()) == nullptr) {
         interrupt->Idle();  // No one to run, wait for an interrupt.
