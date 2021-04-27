@@ -10,7 +10,11 @@
 
 #include <stdio.h>
 #include <string.h>
+#include "semaphore.hh"
 
+#ifdef SEMAPHORE_TEST
+Semaphore S("Semaphore Test", 3);
+#endif
 
 /// Loop 10 times, yielding the CPU to another ready thread each iteration.
 ///
@@ -19,6 +23,7 @@
 void
 SimpleThread(void *name_)
 {
+
     // Reinterpret arg `name` as a string.
     char *name = (char *) name_;
 
@@ -26,7 +31,18 @@ SimpleThread(void *name_)
     // behave incorrectly, because printf execution may cause race
     // conditions.
     for (unsigned num = 0; num < 10; num++) {
+	#ifdef SEMAPHORE_TEST
+	S.P();
+	DEBUG('s', "Thread %s P\n", name_);
+	#endif
+
         printf("*** Thread `%s` is running: iteration %u\n", name, num);
+
+	#ifdef SEMAPHORE_TEST
+    	S.V();
+    	DEBUG('s', "Thread %s V\n", name_);
+    	#endif
+
         currentThread->Yield();
     }
     printf("!!! Thread `%s` has finished\n", name);
@@ -39,10 +55,12 @@ SimpleThread(void *name_)
 void
 ThreadTestSimple()
 {
-    char *name = new char [64];
-    strncpy(name, "2nd", 64);
-    Thread *newThread = new Thread(name);
-    newThread->Fork(SimpleThread, (void *) name);
+    for(int i = 1; i <= 5; i++) {
+      char *name = new char [64];
+      sprintf(name, "%d", i);
+      Thread *newThread = new Thread(name);
+      newThread->Fork(SimpleThread, (void *) name);
+    }
 
-    SimpleThread((void *) "1st");
+    SimpleThread((void *) "1");
 }
