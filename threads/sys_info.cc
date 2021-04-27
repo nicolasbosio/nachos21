@@ -4,8 +4,6 @@
 #include "filesys/file_system.hh"
 #include "filesys/raw_file_header.hh"
 #include "machine/mmu.hh"
-#include "machine/disk.hh"
-#include "machine/disk.cc"
 
 #include <stdio.h>
 
@@ -65,7 +63,7 @@ Disk:\n\
   Number of sectors: %u.\n\
   Disk size: %u bytes.\n",
       SECTOR_SIZE, SECTORS_PER_TRACK, NUM_TRACKS,
-      NUM_SECTORS, DISK_SIZE);
+      NUM_SECTORS, NUM_SECTORS * SECTOR_SIZE);
     printf("\n\
 Filesystem:\n\
   Sectors per header: %u.\n\

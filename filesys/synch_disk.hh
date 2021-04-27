@@ -10,8 +10,9 @@
 
 
 #include "machine/disk.hh"
+//#include "threads/condition.hh"
 #include "threads/lock.hh"
-#include "threads/semaphore.hh"
+//#include "threads/semaphore.hh"
 
 
 /// The following class defines a "synchronous" disk abstraction.

@@ -25,12 +25,16 @@
 
 Condition::Condition(const char *debugName, Lock *conditionLock)
 {
-    // TODO
+    name = debugName;
+    lock = conditionLock;
+    list = new List<Semaphore* >();
+
 }
 
 Condition::~Condition()
 {
-    // TODO
+    list->~List();
+    delete list;
 }
 
 const char *
@@ -42,17 +46,30 @@ Condition::GetName() const
 void
 Condition::Wait()
 {
-    // TODO
+    Semaphore *wait = new Semaphore(name, 0);
+    list->Append(wait);
+    lock->Release();
+    wait->P();
+
+    //////////// CORTE DE EJECUCION
+
+    delete wait;
+    lock->Acquire();
 }
 
 void
 Condition::Signal()
 {
-    // TODO
+    if(!list->IsEmpty()) {
+        Semaphore* aux = list->Pop();
+        aux->V();
+    }
 }
 
 void
 Condition::Broadcast()
 {
-    // TODO
+    while(!list->IsEmpty()) {
+        Signal();
+    }
 }

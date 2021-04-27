@@ -30,11 +30,20 @@ public:
     /// Thread can be dispatched.
     void ReadyToRun(Thread *thread);
 
+    ///
+    void MakeZombie(Thread *thread);
+
+    ///
+    bool IsZombie(Thread *thread);
+
     /// Dequeue first thread on the ready list, if any, and return thread.
     Thread *FindNextToRun();
 
     /// Cause `nextThread` to start running.
     void Run(Thread *nextThread);
+
+    /// 
+    void UpdatePriority(Thread *thread, unsigned int newPriority);
 
     // Print contents of ready list.
     void Print();
@@ -42,7 +51,8 @@ public:
 private:
 
     // Queue of threads that are ready to run, but not running.
-    List<Thread*> *readyList;
+    List<Thread*> *readyList[10];
+    List<Thread*> *zombieList;
 
 };
 

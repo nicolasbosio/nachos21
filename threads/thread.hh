@@ -62,6 +62,10 @@ const unsigned MACHINE_STATE_SIZE = 17;
 /// WATCH OUT IF THIS IS NOT BIG ENOUGH!!!!!
 const unsigned STACK_SIZE = 4 * 1024;
 
+/// completar
+///
+///
+const unsigned MAX_PRIORITY = 10;
 
 /// Thread state.
 enum ThreadStatus {
@@ -69,6 +73,7 @@ enum ThreadStatus {
     RUNNING,
     READY,
     BLOCKED,
+    ZOMBIE,
     NUM_THREAD_STATUS
 };
 
@@ -97,7 +102,7 @@ private:
 public:
 
     /// Initialize a `Thread`.
-    Thread(const char *debugName);
+    Thread(const char *debugName, bool joinable, unsigned int inicialPriority = 4);
 
     /// Deallocate a Thread.
     ///
@@ -116,6 +121,9 @@ public:
     /// Put the thread to sleep and relinquish the processor.
     void Sleep();
 
+    ///Join the thread
+    void Join();
+
     /// The thread is done executing.
     void Finish();
 
@@ -124,7 +132,15 @@ public:
 
     void SetStatus(ThreadStatus st);
 
+    Thread *GetFather(Thread *sonThread);
+
     const char *GetName() const;
+
+    unsigned int GetPriority();
+
+    void SetPriority(unsigned int newPriority);
+
+    void RestorePriority();
 
     void Print() const;
 
@@ -143,6 +159,12 @@ private:
 
     /// Allocate a stack for thread.  Used internally by `Fork`.
     void StackAllocate(VoidFunctionPtr func, void *arg);
+
+    /// 
+    bool selfDestruct;
+    Thread *threadFather;
+    unsigned int priority;
+    unsigned int oldPriority;
 
 #ifdef USER_PROGRAM
     /// User-level CPU register state.

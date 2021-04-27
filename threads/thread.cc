@@ -40,12 +40,17 @@ IsThreadStatus(ThreadStatus s)
 /// `Thread::Fork`.
 ///
 /// * `threadName` is an arbitrary string, useful for debugging.
-Thread::Thread(const char *threadName)
+Thread::Thread(const char *threadName, bool joinable, unsigned int initialPriority)
 {
+    ASSERT(initialPriority < MAX_PRIORITY);
     name     = threadName;
+    priority = initialPriority;
+    oldPriority = initialPriority;
     stackTop = nullptr;
     stack    = nullptr;
     status   = JUST_CREATED;
+    selfDestruct = !joinable;
+    threadFather = currentThread;
 #ifdef USER_PROGRAM
     space    = nullptr;
 #endif
@@ -129,11 +134,34 @@ Thread::SetStatus(ThreadStatus st)
     status = st;
 }
 
+Thread *
+Thread::GetFather(Thread *sonThread)
+{
+    return sonThread->threadFather;
+}
+
 const char *
 Thread::GetName() const
 {
     return name;
 }
+
+unsigned int 
+Thread::GetPriority() {
+    return priority;
+}
+
+void 
+Thread::SetPriority(unsigned int newPriority) {
+    oldPriority = priority;
+    priority = newPriority;
+}
+
+void
+Thread::RestorePriority() {
+    priority = oldPriority;
+}
+
 
 void
 Thread::Print() const
@@ -160,7 +188,12 @@ Thread::Finish()
 
     DEBUG('t', "Finishing thread \"%s\"\n", GetName());
 
-    threadToBeDestroyed = currentThread;
+    if(selfDestruct)
+        threadToBeDestroyed = currentThread;
+    else {
+        threadToBeDestroyed = nullptr;
+        scheduler->MakeZombie(currentThread);
+    }
     Sleep();  // Invokes `SWITCH`.
     // Not reached.
 }
@@ -221,13 +254,26 @@ Thread::Sleep()
     DEBUG('t', "Sleeping thread \"%s\"\n", GetName());
 
     Thread *nextThread;
-    status = BLOCKED;
+    if(selfDestruct)
+        status = BLOCKED;
     while ((nextThread = scheduler->FindNextToRun()) == nullptr) {
         interrupt->Idle();  // No one to run, wait for an interrupt.
     }
 
     scheduler->Run(nextThread);  // Returns when we have been signalled.
 }
+
+///Descripcion del join
+void
+Thread::Join()
+{
+    while(!scheduler->IsZombie(this)) {
+        interrupt->SetLevel(INT_OFF);
+        currentThread->Sleep();
+    }
+    delete this;
+}
+
 
 /// ThreadFinish, InterruptEnable
 ///

@@ -16,15 +16,22 @@
 
 
 #include "lock.hh"
-
+#include "system.hh"
 
 /// Dummy functions -- so we can compile our later assignments.
 
 Lock::Lock(const char *debugName)
-{}
+{
+    name = debugName;
+    sem = new Semaphore(name, 1);
+    owner = nullptr;
+}
 
 Lock::~Lock()
-{}
+{
+    sem->~Semaphore();
+    delete sem;
+}
 
 const char *
 Lock::GetName() const
@@ -35,18 +42,24 @@ Lock::GetName() const
 void
 Lock::Acquire()
 {
-    // TODO
+    ASSERT(!IsHeldByCurrentThread());
+    if (owner != nullptr && owner->GetPriority() < currentThread->GetPriority())
+        scheduler->UpdatePriority(owner, currentThread->GetPriority());
+    sem->P();
+    owner = currentThread;
 }
 
 void
 Lock::Release()
 {
-    // TODO
+    ASSERT(IsHeldByCurrentThread());
+    owner->RestorePriority();
+    owner = nullptr;
+    sem ->V();
 }
 
 bool
 Lock::IsHeldByCurrentThread() const
 {
-    // TODO
-    return false;
+    return owner == currentThread;
 }

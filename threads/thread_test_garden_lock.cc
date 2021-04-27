@@ -5,28 +5,29 @@
 /// limitation of liability and disclaimer of warranty provisions.
 
 
-#include "thread_test_garden.hh"
+#include "thread_test_garden_lock.hh"
 #include "system.hh"
-#include "semaphore.hh"
+
 #include <stdio.h>
+#include "lock.hh"
+static Lock *lock = new Lock("Lock initialization");
 
 
 static const unsigned NUM_TURNSTILES = 2;
-static const unsigned ITERATIONS_PER_TURNSTILE = 5000000;
+static const unsigned ITERATIONS_PER_TURNSTILE = 50;
 static bool done[NUM_TURNSTILES];
 static int count;
-Semaphore Ruperta("Semaphore Test", 1);
 
 static void
-Turnstile(void *n_)
+TurnstileLock(void *n_)
 {
     unsigned *n = (unsigned *) n_;
 
     for (unsigned i = 0; i < ITERATIONS_PER_TURNSTILE; i++) {
         currentThread->Yield();
-        Ruperta.P();
+        lock->Acquire();
         count = count + 1;
-        Ruperta.V();
+        lock->Release();
     }
     printf("Turnstile %u finished. Count is now %u.\n", *n, count);
     done[*n] = true;
@@ -34,7 +35,7 @@ Turnstile(void *n_)
 }
 
 void
-ThreadTestGarden()
+ThreadTestGardenLock()
 {
     // Launch a new thread for each turnstile.
     for (unsigned i = 0; i < NUM_TURNSTILES; i++) {
@@ -44,7 +45,7 @@ ThreadTestGarden()
         unsigned *n = new unsigned;
         *n = i;
         Thread *t = new Thread(name, false);
-        t->Fork(Turnstile, (void *) n);
+        t->Fork(TurnstileLock, (void *) n);
     }
 
     // Wait until all turnstile threads finish their work.  `Thread::Join` is

@@ -27,13 +27,17 @@
 /// Initialize the list of ready but not running threads to empty.
 Scheduler::Scheduler()
 {
-    readyList = new List<Thread *>;
+    for (unsigned int i = 0 ; i < MAX_PRIORITY ; i++)
+        readyList[i] = new List<Thread *>;
+    zombieList = new List<Thread *>;
 }
 
 /// De-allocate the list of ready threads.
 Scheduler::~Scheduler()
 {
-    delete readyList;
+    for (unsigned int i = 0 ; i < MAX_PRIORITY ; i++)
+        delete readyList[i];
+    delete zombieList;
 }
 
 /// Mark a thread as ready, but not running.
@@ -48,7 +52,27 @@ Scheduler::ReadyToRun(Thread *thread)
     DEBUG('t', "Putting thread %s on ready list\n", thread->GetName());
 
     thread->SetStatus(READY);
-    readyList->Append(thread);
+    readyList[thread->GetPriority()]->Append(thread);
+}
+
+///
+void
+Scheduler::MakeZombie(Thread *toZombie){
+    ASSERT(toZombie != nullptr);
+
+    DEBUG('t', "Putting thread %s on zombie list\n", toZombie->GetName());
+
+    toZombie->SetStatus(ZOMBIE);
+    zombieList->Append(toZombie);
+    Thread *father = toZombie->GetFather(toZombie);
+    scheduler->ReadyToRun(father);
+    //necesito que ponga en ready to run al hilo padre
+}
+
+///
+bool
+Scheduler::IsZombie(Thread *thread){
+    return zombieList->Has(thread);
 }
 
 /// Return the next thread to be scheduled onto the CPU.
@@ -59,7 +83,11 @@ Scheduler::ReadyToRun(Thread *thread)
 Thread *
 Scheduler::FindNextToRun()
 {
-    return readyList->Pop();
+    for (unsigned int i = MAX_PRIORITY - 1 ; i >= 0 ; i--) {
+        if(!readyList[i]->IsEmpty())
+            return readyList[i]->Pop();
+    }
+    return nullptr;
 }
 
 /// Dispatch the CPU to `nextThread`.
@@ -124,6 +152,16 @@ Scheduler::Run(Thread *nextThread)
 #endif
 }
 
+///
+///
+///
+void 
+Scheduler::UpdatePriority(Thread *thread, unsigned int newPriority) {
+    readyList[thread->GetPriority()]->Remove(thread);
+    thread->SetPriority(newPriority);
+    readyList[newPriority]->Append(thread);  
+}
+
 /// Print the scheduler state -- in other words, the contents of the ready
 /// list.
 ///
@@ -139,5 +177,6 @@ void
 Scheduler::Print()
 {
     printf("Ready list contents:\n");
-    readyList->Apply(ThreadPrint);
+    for(unsigned int i = MAX_PRIORITY - 1 ; i >= 0; i--)
+        readyList[i]->Apply(ThreadPrint);
 }
