@@ -122,10 +122,10 @@ public:
     void Sleep();
 
     ///Join the thread
-    void Join();
+    int Join();
 
     /// The thread is done executing.
-    void Finish();
+    void Finish(int retVal);
 
     /// Check if thread has overflowed its stack.
     void CheckOverflow() const;
@@ -165,6 +165,7 @@ private:
     Thread *threadFather;
     unsigned int priority;
     unsigned int oldPriority;
+    int returnStatus;
 
 #ifdef USER_PROGRAM
     /// User-level CPU register state.

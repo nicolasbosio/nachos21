@@ -162,7 +162,6 @@ Thread::RestorePriority() {
     priority = oldPriority;
 }
 
-
 void
 Thread::Print() const
 {
@@ -181,11 +180,11 @@ Thread::Print() const
 /// NOTE: we disable interrupts, so that we do not get a time slice between
 /// setting `threadToBeDestroyed`, and going to sleep.
 void
-Thread::Finish()
+Thread::Finish(int retVal)
 {
     interrupt->SetLevel(INT_OFF);
     ASSERT(this == currentThread);
-
+    returnStatus = retVal;
     DEBUG('t', "Finishing thread \"%s\"\n", GetName());
 
     if(selfDestruct)
@@ -264,14 +263,16 @@ Thread::Sleep()
 }
 
 ///Descripcion del join
-void
+int
 Thread::Join()
 {
     while(!scheduler->IsZombie(this)) {
         interrupt->SetLevel(INT_OFF);
         currentThread->Sleep();
     }
+    int ret = returnStatus;
     delete this;
+    return ret;
 }
 
 
@@ -283,7 +284,7 @@ Thread::Join()
 static void
 ThreadFinish()
 {
-    currentThread->Finish();
+    currentThread->Finish(0);
 }
 
 static void

@@ -7,17 +7,25 @@
 #include "lib/utility.hh"
 #include "threads/system.hh"
 
-#include "threads/thread.hh" //BORRAR!
-
-
 void ReadBufferFromUser(int userAddress, char *outBuffer,
-                        unsigned byteCount)
+                        unsigned byteCount) 
 {
-    // TODO: implement.
+    ASSERT(userAddress != 0);
+    ASSERT(outBuffer != nullptr);
+
+    if(byteCount != 0) {
+        unsigned count = 0;
+        do {
+            int temp;
+            count++;
+            ASSERT(machine->ReadMem(userAddress++, 1, &temp));
+            *outBuffer++ = (unsigned char) temp;
+        } while (count < byteCount);
+    }
 }
 
 bool ReadStringFromUser(int userAddress, char *outString,
-                        unsigned maxByteCount)
+                        unsigned maxByteCount) 
 {
     ASSERT(userAddress != 0);
     ASSERT(outString != nullptr);
@@ -35,12 +43,27 @@ bool ReadStringFromUser(int userAddress, char *outString,
 }
 
 void WriteBufferToUser(const char *buffer, int userAddress,
-                       unsigned byteCount)
+                       unsigned byteCount) 
 {
-    // TODO: implement.
+    ASSERT(userAddress != 0);
+    ASSERT(buffer != nullptr);
+
+    if(byteCount != 0) {
+        unsigned count = 0;
+        do {
+            count++;
+            ASSERT(machine->WriteMem(userAddress++, 1, (int) *buffer));
+            buffer++;
+        } while (count < byteCount);
+    }
 }
 
 void WriteStringToUser(const char *string, int userAddress)
 {
-    // TODO: implement.
+    ASSERT(userAddress != 0);
+    ASSERT(string != nullptr);
+
+    do {
+        ASSERT(machine->WriteMem(userAddress++, 1, (int) *string));
+    } while (*string++ != '\0');
 }
