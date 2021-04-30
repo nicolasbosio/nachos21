@@ -7,6 +7,8 @@
 #include "lib/utility.hh"
 #include "threads/system.hh"
 
+#include "threads/thread.hh" //BORRAR!
+
 
 void ReadBufferFromUser(int userAddress, char *outBuffer,
                         unsigned byteCount)
