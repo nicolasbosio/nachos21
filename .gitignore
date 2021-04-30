@@ -1,5 +1,8 @@
+userland/
+!*/userland/*.*
 *.o
 *.depends
+*.coff
 coff2flat
 coff2noff
 disassemble
