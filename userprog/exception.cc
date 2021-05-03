@@ -26,9 +26,8 @@
 #include "syscall.h"
 #include "filesys/directory_entry.hh"
 #include "threads/system.hh"
- 
+#include "synch_console.hh"
 #include <stdio.h>
-
 
 static void
 IncrementPC()
@@ -107,7 +106,7 @@ SyscallHandler(ExceptionType _et)
             }
             DEBUG('e', "`Create` requested for file `%s`.\n", filename);
 
-            if(!fileSystem->Create(filename, 0)){
+            if(!fileSystem->Create(filename, 1000)){
                 machine->WriteRegister(2, -1);
                 DEBUG('e', "Error: Failed to create the file: %s\n", filename);
                 break;
@@ -150,9 +149,137 @@ SyscallHandler(ExceptionType _et)
             break;
         }
 
+        case SC_OPEN: {
+            int filenameAddr = machine->ReadRegister(4);
+            if (filenameAddr == 0)
+            {
+                machine->WriteRegister(2, -1);
+                DEBUG('e', "Error: address to filename string is null.\n");
+                break;
+            }
+
+            char filename[FILE_NAME_MAX_LEN + 1];
+            if (!ReadStringFromUser(filenameAddr,
+                                    filename, sizeof filename))
+            {
+                machine->WriteRegister(2, -1);
+                DEBUG('e', "Error: filename string too long (maximum is %u bytes).\n",
+                      FILE_NAME_MAX_LEN);
+                break;
+            }
+            DEBUG('e', "`Open` requested for filename %s.\n", filename);
+
+            OpenFile *file = fileSystem->Open(filename);
+            int fid = currentThread->AddOpenFile(file);
+
+            if(fid == -1)
+            {
+                machine->WriteRegister(2, -1);
+                DEBUG('e', "Error: no space left to open file.\n");
+                break;
+            }
+
+            //machine->WriteRegister(2, 1);
+            machine->WriteRegister(2, fid);
+            break;
+        }
         case SC_CLOSE: {
-            int fid = machine->ReadRegister(4);
+            OpenFileId fid = machine->ReadRegister(4);
+            if (fid < 0)
+            {
+                DEBUG('e',"File id not valid\n");
+                break;
+            }
             DEBUG('e', "`Close` requested for id %u.\n", fid);
+            bool success = currentThread->DeleteOpenFile(fid);
+            if(!success)
+            {
+                DEBUG('e', "`Close` requested for id failed %u.\n", fid);
+                machine->WriteRegister(2, -1);
+                break;
+            }
+            machine->WriteRegister(2, 1);
+            break;
+        }
+
+        case SC_READ: {
+            int bufferDest = machine->ReadRegister(4);
+            int size = machine->ReadRegister(5);
+            int fid = machine->ReadRegister(6);
+
+            if(size <= 0)
+            {
+                DEBUG('e', "Size read equal to 0\n");
+                break;
+            }
+
+            DEBUG('e', "`Read` requested for id %u.\n", fid);
+
+            char dest[size];
+            WriteStringToUser(dest, bufferDest);
+            if (fid == CONSOLE_INPUT) { ///CONSOLA
+                synchConsole->Read(dest, size);
+            }
+            else { ///ARCHIVO
+                OpenFile* file = currentThread->GetOpenFileByFileId(fid);
+                if(!file)
+                {
+                    DEBUG('e', "Error: File is not open.\n.");
+                    machine->WriteRegister(2, -1);
+                    break;
+                }
+
+                file->Read(dest, (unsigned)size);
+                WriteBufferToUser(dest, bufferDest, (unsigned)size);
+            }
+            machine->WriteRegister(2, 1);
+            break;
+        }
+
+        case SC_WRITE:
+        {
+            int bufferSource = machine->ReadRegister(4);
+            int size = machine->ReadRegister(5);
+            OpenFileId fid = machine->ReadRegister(6);
+
+            if(size <= 0)
+            {
+                DEBUG('e', "Size read equal to 0\n");
+                break;
+            }
+            
+            DEBUG('e', "`Write` requested for id %u.\n", fid);
+
+            char out[size];
+            ReadBufferFromUser(bufferSource, out, size);
+            if (fid == CONSOLE_OUTPUT ) { ///CONSOLA
+                DEBUG('e', "Console output\n");
+                synchConsole->Write(out, size);
+            }
+            else { 
+                OpenFile* file = currentThread->GetOpenFileByFileId(fid);
+                if(!file)
+                {
+                    DEBUG('e', "Error: File is not open.\n.");
+                    machine->WriteRegister(2, -1);
+                    break;
+                }
+
+                file->Write(out, (unsigned)size);
+            }
+            machine->WriteRegister(2, 1);
+            break;
+        }
+
+        case SC_JOIN:
+        {
+            //TODO:
+            break;
+        }
+
+        case SC_EXEC:
+        {
+            //TODO:
             break;
         }
 

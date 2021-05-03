@@ -10,6 +10,9 @@
 
 
 #include "syscall.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <assert.h>
 
 
 int
@@ -19,5 +22,11 @@ main(void)
     OpenFileId o = Open("test.txt");
     Write("Hello world\n",12,o);
     Close(o);
-    return 0;
+    o = Open("test.txt");
+    char temp[12];
+    Read(temp, 12, o);
+    Write(temp, 12, 1);
+    Close(o);
+    Remove("test.txt");
+    Halt();
 }

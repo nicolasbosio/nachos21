@@ -1,0 +1,7 @@
+{
+    "C_Cpp.dimInactiveRegions": false,
+    "files.associations": {
+        "fstream": "cpp",
+        "thread": "cpp"
+    }
+}

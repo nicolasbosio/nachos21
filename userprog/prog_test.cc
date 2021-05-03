@@ -13,8 +13,11 @@
 #include "machine/console.hh"
 #include "threads/semaphore.hh"
 #include "threads/system.hh"
+#include "synch_console.hh"
+#include "syscall.h"
 
 #include <stdio.h>
+#include <string.h>
 
 
 /// Run a user program.
@@ -23,6 +26,7 @@
 void
 StartProcess(const char *filename)
 {
+    DEBUG('t', "Starting process\n");
     ASSERT(filename != nullptr);
 
     OpenFile *executable = fileSystem->Open(filename);
@@ -38,7 +42,7 @@ StartProcess(const char *filename)
 
     space->InitRegisters();  // Set the initial register values.
     space->RestoreState();   // Load page table register.
-
+    DEBUG('t', "PRE RUN\n");
     machine->Run();  // Jump to the user progam.
     ASSERT(false);   // `machine->Run` never returns; the address space
                      // exits by doing the system call `Exit`.
@@ -89,4 +93,31 @@ ConsoleTest(const char *in, const char *out)
             return;  // If `q`, then quit.
         }
     }
+}
+
+static SynchConsole *synchConsole2;
+
+/// Test the console by echoing characters typed at the input onto the
+/// output.
+///
+/// Stop when the user types a `q`.
+void
+SynchConsoleTest(const char *in, const char *out)
+{
+    synchConsole2   = new SynchConsole(in, out);
+    char *text = new char[40];
+    char *read = new char[20];
+    sprintf(text, "Ingrese un comando\n");
+    synchConsole2->Write(text, strlen(text));
+    synchConsole2->Read(read, 20);
+    sprintf(text, "El comando ingresado es: %s\n", read);
+    printf("PRINTF READ: %s\n", read);
+    printf("PRINTF TEXT: %s\n", text);
+    synchConsole2->Write(text, strlen(text));
+}
+
+void
+SynchConsoleTest2(const char *in, const char *out)
+{
+
 }

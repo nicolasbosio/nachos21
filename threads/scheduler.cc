@@ -83,7 +83,9 @@ Scheduler::IsZombie(Thread *thread){
 Thread *
 Scheduler::FindNextToRun()
 {
-    for (unsigned int i = MAX_PRIORITY - 1 ; i >= 0 ; i--) {
+    for (unsigned int i = MAX_PRIORITY - 1 ; i > 0 ; i--)
+    {
+        // DEBUG('t', "FindNextToRun with priority: %d\n", i);
         if(!readyList[i]->IsEmpty())
             return readyList[i]->Pop();
     }

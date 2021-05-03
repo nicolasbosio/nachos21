@@ -53,6 +53,9 @@ Thread::Thread(const char *threadName, bool joinable, unsigned int initialPriori
     threadFather = currentThread;
 #ifdef USER_PROGRAM
     space    = nullptr;
+    fileTable = new Table<OpenFile*>();
+    fileTable->Add(NULL);
+    fileTable->Add(NULL);
 #endif
 }
 
@@ -73,6 +76,9 @@ Thread::~Thread()
         SystemDep::DeallocBoundedArray((char *) stack,
                                        STACK_SIZE * sizeof *stack);
     }
+#ifdef USER_PROGRAM
+    delete fileTable;
+#endif
 }
 
 /// Invoke `(*func)(arg)`, allowing caller and callee to execute
@@ -253,8 +259,10 @@ Thread::Sleep()
     DEBUG('t', "Sleeping thread \"%s\"\n", GetName());
 
     Thread *nextThread;
-    if(!selfDestruct)
+    if(selfDestruct) {
         status = BLOCKED;
+        DEBUG('t', "Mark thread \"%s\" status: %d\n", GetName(), status);
+    }
     while ((nextThread = scheduler->FindNextToRun()) == nullptr) {
         interrupt->Idle();  // No one to run, wait for an interrupt.
     }
@@ -355,6 +363,29 @@ Thread::RestoreUserState()
     for (unsigned i = 0; i < NUM_TOTAL_REGS; i++) {
         machine->WriteRegister(i, userRegisters[i]);
     }
+}
+
+int
+Thread::AddOpenFile(OpenFile* openFile)
+{
+    return fileTable->Add(openFile);
+}
+
+bool Thread::DeleteOpenFile(int fid)
+{
+    if(fileTable->HasKey(fid))
+    {
+        OpenFile* file = fileTable->Remove(fid);
+        delete file;
+        return true;
+    }
+    return false;
+}
+
+OpenFile*
+Thread::GetOpenFileByFileId(int fid)
+{
+    return fileTable->Get(fid);
 }
 
 #endif

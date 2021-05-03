@@ -41,9 +41,12 @@
 
 #include "lib/utility.hh"
 
+
 #ifdef USER_PROGRAM
 #include "machine/machine.hh"
 #include "userprog/address_space.hh"
+#include "lib/table.hh"
+#include "filesys/open_file.hh"
 #endif
 
 #include <stdint.h>
@@ -174,6 +177,7 @@ private:
     /// registers -- one for its state while executing user code, one for its
     /// state while executing kernel code.
     int userRegisters[NUM_TOTAL_REGS];
+    Table<OpenFile*> *fileTable;
 
 public:
 
@@ -185,6 +189,13 @@ public:
 
     // User code this thread is running.
     AddressSpace *space;
+
+    int AddOpenFile(OpenFile *openFile);
+
+    bool DeleteOpenFile(int fid);
+
+    OpenFile* GetOpenFileByFileId(int fid);
+
 #endif
 };
 
