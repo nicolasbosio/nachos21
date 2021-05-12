@@ -26,7 +26,9 @@
 #include "syscall.h"
 #include "filesys/directory_entry.hh"
 #include "threads/system.hh"
+#include "threads/thread.hh"
 #include "synch_console.hh"
+#include "address_space.hh"
 #include <stdio.h>
 
 static void
@@ -40,6 +42,14 @@ IncrementPC()
     machine->WriteRegister(PC_REG, pc);
     pc += 4;
     machine->WriteRegister(NEXT_PC_REG, pc);
+}
+
+void newThread(void *name)
+{
+    currentThread->space->InitRegisters(); // Set the initial register values.
+    currentThread->space->RestoreState();  // Load page table register.
+
+    machine->Run(); // Jump to the user progam.
 }
 
 /// Do some default behavior for an unexpected exception.
@@ -58,6 +68,32 @@ DefaultHandler(ExceptionType et)
     fprintf(stderr, "Unexpected user mode exception: %s, arg %d.\n",
             ExceptionTypeToString(et), exceptionArg);
     ASSERT(false);
+}
+
+/// Run a user program.
+///
+/// Open the executable, load it into memory, and jump to it.
+void
+StartProcess(const char *filename)
+{
+    ASSERT(filename != nullptr);
+
+    OpenFile *executable = fileSystem->Open(filename);
+    if (executable == nullptr) {
+        printf("Unable to open file %s\n", filename);
+        return;
+    }
+
+    AddressSpace *space = new AddressSpace(executable);
+    currentThread->space = space;
+
+    delete executable;
+
+    space->InitRegisters();  // Set the initial register values.
+    space->RestoreState();   // Load page table register.
+    machine->Run();  // Jump to the user progam.
+    ASSERT(false);   // `machine->Run` never returns; the address space
+                     // exits by doing the system call `Exit`.
 }
 
 /// Handle a system call exception.
@@ -116,6 +152,86 @@ SyscallHandler(ExceptionType _et)
             break;
         }
 
+        case SC_EXEC: {
+
+            DEBUG('e', "Request for Starting process\n");
+            /////////////////////////////////// VER DE REEMPLAZAR CON UNA LLAMADA A OPEN
+            int filenameAddr = machine->ReadRegister(4);
+            if (filenameAddr == 0)
+            {
+                machine->WriteRegister(2, -1);
+                DEBUG('e', "Error: address to filename string is null.\n");
+                break;
+            }
+
+            char filename[FILE_NAME_MAX_LEN + 1];
+            if (!ReadStringFromUser(filenameAddr,
+                                    filename, sizeof filename))
+            {
+                machine->WriteRegister(2, -1);
+                DEBUG('e', "NOMBRE %s.\n", filename);
+                DEBUG('e', "Error: filename string too long (maximum is %u bytes).\n",
+                      FILE_NAME_MAX_LEN);
+                break;
+            }
+            DEBUG('e', "'Exec' Request for file `%s`.\n", filename);
+            char *threadName = new char[FILE_NAME_MAX_LEN + 1];
+            sprintf(threadName, "%s", filename);
+            Thread *child = new Thread(threadName, true, 5);
+
+            DEBUG('e', "`Open` requested for filename %s.\n", filename);
+
+            OpenFile *file = fileSystem->Open(filename);
+            ////////////////////////////
+
+            AddressSpace *newSpace = new AddressSpace(file);
+            if(!newSpace->IsInitialized()) {
+                DEBUG('e', "Error al inicializar el address space\n");
+                break;
+            }
+            child->space = newSpace;
+            int i = 0;
+            for ( ; i < 10 ; i++) {
+                if(tableThread[i].space == NULL) {
+                    tableThread[i].space = (SpaceId*)newSpace;
+                    tableThread[i].thread = child;
+                    break;
+                }
+            }
+
+            child->Fork(newThread, nullptr);
+
+            // DEBUG('e', "Success in Exec for %s\n", filename);
+
+            delete file;
+
+            machine->WriteRegister(2, i);
+            //scheduler->Print();
+            //REMINDER DE QUE SOMOS COMPLETAMENTE RETRASADOS
+            //Y MERECEMOS LA MUERTE POR NO SABER COMO PORONGA FUNCIONA UN SWITCH
+            //SDS
+            break;
+        }
+
+        case SC_JOIN: {
+            // VER TODAS LAS CONDICIONES DONDE PUEDE FALLAR
+            // ESTO DEBERIA PONER UN HILO A CORRER PARA CHEQUEAR QUE EL QUE ESTOY ESPERANDO TERMINE????
+            int index = machine->ReadRegister(4);
+            DEBUG('e', "´Join´ called for space %p\n", tableThread[index].space);
+            Thread *thread = tableThread[index].thread;
+            // for (int i = 0; i < 10; i++)
+            // {
+            //     if(i == index) {
+            //         thread = tableThread[i].thread;
+            //         break;
+            //     }
+            // }
+            DEBUG('e', "´Join Tread´ called for thread %s\n", thread->GetName());
+            thread->Join();
+            machine->WriteRegister(2, 1);
+            break;
+        }
+
         case SC_REMOVE: {
             int filenameAddr = machine->ReadRegister(4);
             if (filenameAddr == 0) {
@@ -145,6 +261,9 @@ SyscallHandler(ExceptionType _et)
         }
 
         case SC_EXIT: {
+            //HALT if there is nothing left to run
+            //Delete bitmap
+            delete currentThread->space;
             currentThread->Finish(machine->ReadRegister(4));
             break;
         }
@@ -167,10 +286,10 @@ SyscallHandler(ExceptionType _et)
                       FILE_NAME_MAX_LEN);
                 break;
             }
-            DEBUG('e', "`Open` requested for filename %s.\n", filename);
+            DEBUG('e', "`Open` EXCEPTION requested for filename %s.\n", filename);
 
             OpenFile *file = fileSystem->Open(filename);
-            int fid = currentThread->AddOpenFile(file);
+            OpenFileId fid = currentThread->AddOpenFile(file);
 
             if(fid == -1)
             {
@@ -179,10 +298,10 @@ SyscallHandler(ExceptionType _et)
                 break;
             }
 
-            //machine->WriteRegister(2, 1);
             machine->WriteRegister(2, fid);
             break;
         }
+
         case SC_CLOSE: {
             OpenFileId fid = machine->ReadRegister(4);
             if (fid < 0)
@@ -241,7 +360,6 @@ SyscallHandler(ExceptionType _et)
             int bufferSource = machine->ReadRegister(4);
             int size = machine->ReadRegister(5);
             OpenFileId fid = machine->ReadRegister(6);
-
             if(size <= 0)
             {
                 DEBUG('e', "Size read equal to 0\n");
@@ -252,11 +370,11 @@ SyscallHandler(ExceptionType _et)
 
             char out[size];
             ReadBufferFromUser(bufferSource, out, size);
-            if (fid == CONSOLE_OUTPUT ) { ///CONSOLA
+            if (fid == CONSOLE_OUTPUT ) {
                 DEBUG('e', "Console output\n");
                 synchConsole->Write(out, size);
             }
-            else { 
+            else {
                 OpenFile* file = currentThread->GetOpenFileByFileId(fid);
                 if(!file)
                 {
@@ -266,20 +384,16 @@ SyscallHandler(ExceptionType _et)
                 }
 
                 file->Write(out, (unsigned)size);
+                //delete file; // PROBAR
             }
             machine->WriteRegister(2, 1);
             break;
         }
 
-        case SC_JOIN:
+        case SC_STATS:
         {
-            //TODO:
-            break;
-        }
-
-        case SC_EXEC:
-        {
-            //TODO:
+            DEBUG('e', "Scheduler stats requested.\n");
+            scheduler->Print();
             break;
         }
 

@@ -20,13 +20,12 @@ main(void)
 {
     Create("test.txt");
     OpenFileId o = Open("test.txt");
+    SpaceId proc1 = Exec("../userland/filetest2");
     Write("Hello world\n",12,o);
     Close(o);
-    o = Open("test.txt");
-    char temp[12];
-    Read(temp, 12, o);
-    Write(temp, 12, 1);
-    Close(o);
-    Remove("test.txt");
+    //Stats();
+    int i = Join(proc1);
+    if (i == 1)
+        Write("Retorno bien el Join FUNCA\n",29,1);
     Halt();
 }

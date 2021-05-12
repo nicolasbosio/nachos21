@@ -65,9 +65,9 @@ const unsigned MACHINE_STATE_SIZE = 17;
 /// WATCH OUT IF THIS IS NOT BIG ENOUGH!!!!!
 const unsigned STACK_SIZE = 4 * 1024;
 
-/// completar
+/// Priority Queue max priority
 ///
-///
+/// Where 0 is least priority
 const unsigned MAX_PRIORITY = 10;
 
 /// Thread state.

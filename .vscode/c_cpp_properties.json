@@ -5,7 +5,7 @@
             "includePath": [
                 "${workspaceFolder}/**"
             ],
-            "defines": [],
+            "defines": ["USER_PROGRAM", "FILESYS_NEEDED", "FILESYS", "NETWORK", "ASSERT", "DEBUG"],
             "compilerPath": "/usr/bin/gcc",
             "cStandard": "gnu17",
             "cppStandard": "gnu++14",

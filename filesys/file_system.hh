@@ -72,9 +72,11 @@ public:
 
     OpenFile *Open(const char *name)
     {
+        DEBUG('f', "(HH) Open requested for file %s\n", name);
         ASSERT(name != nullptr);
 
         int fileDescriptor = SystemDep::OpenForReadWrite(name, false);
+        DEBUG('f', "(HH) File descriptor is %d\n", fileDescriptor);
         if (fileDescriptor == -1) {
             return nullptr;
         }

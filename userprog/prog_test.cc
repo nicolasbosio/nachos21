@@ -19,35 +19,6 @@
 #include <stdio.h>
 #include <string.h>
 
-
-/// Run a user program.
-///
-/// Open the executable, load it into memory, and jump to it.
-void
-StartProcess(const char *filename)
-{
-    DEBUG('t', "Starting process\n");
-    ASSERT(filename != nullptr);
-
-    OpenFile *executable = fileSystem->Open(filename);
-    if (executable == nullptr) {
-        printf("Unable to open file %s\n", filename);
-        return;
-    }
-
-    AddressSpace *space = new AddressSpace(executable);
-    currentThread->space = space;
-
-    delete executable;
-
-    space->InitRegisters();  // Set the initial register values.
-    space->RestoreState();   // Load page table register.
-    DEBUG('t', "PRE RUN\n");
-    machine->Run();  // Jump to the user progam.
-    ASSERT(false);   // `machine->Run` never returns; the address space
-                     // exits by doing the system call `Exit`.
-}
-
 /// Data structures needed for the console test.
 ///
 /// Threads making I/O requests wait on a `Semaphore` to delay until the I/O

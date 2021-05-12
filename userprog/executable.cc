@@ -48,7 +48,7 @@ Executable::CheckMagic()
 
 uint32_t
 Executable::GetSize() const
-{
+{   
     return header.code.size + header.initData.size + header.uninitData.size;
 }
 

@@ -46,6 +46,7 @@ public:
 
     void SaveState();
     void RestoreState();
+    bool IsInitialized();
 
 private:
 
@@ -54,6 +55,9 @@ private:
 
     /// Number of pages in the virtual address space.
     unsigned numPages;
+
+    /// COMENTAR
+    bool initialized;
 
 };
 

@@ -54,8 +54,8 @@ Thread::Thread(const char *threadName, bool joinable, unsigned int initialPriori
 #ifdef USER_PROGRAM
     space    = nullptr;
     fileTable = new Table<OpenFile*>();
-    fileTable->Add(NULL);
-    fileTable->Add(NULL);
+    fileTable->Add(NULL); // REPRESENTA LAS ENTRADAS DE CONSOLA
+    fileTable->Add(NULL); // REPRESENTA LAS ENTRADAS DE CONSOLA
 #endif
 }
 
@@ -108,8 +108,9 @@ Thread::Fork(VoidFunctionPtr func, void *arg)
     StackAllocate(func, arg);
 
     IntStatus oldLevel = interrupt->SetLevel(INT_OFF);
-    scheduler->ReadyToRun(this);  // `ReadyToRun` assumes that interrupts
-                                  // are disabled!
+    scheduler->ReadyToRun(this); // `ReadyToRun` assumes that interrupts
+                                 // are disabled!
+    // DEBUG('t', "About to set interrupt level to old from thread \"%s\"\n", GetName());
     interrupt->SetLevel(oldLevel);
 }
 
@@ -230,6 +231,7 @@ Thread::Yield()
     Thread *nextThread = scheduler->FindNextToRun();
     if (nextThread != nullptr) {
         scheduler->ReadyToRun(this);
+        DEBUG('t', "About to run thread \"%s\"\n", GetName());
         scheduler->Run(nextThread);
     }
 
@@ -261,7 +263,6 @@ Thread::Sleep()
     Thread *nextThread;
     if(selfDestruct) {
         status = BLOCKED;
-        DEBUG('t', "Mark thread \"%s\" status: %d\n", GetName(), status);
     }
     while ((nextThread = scheduler->FindNextToRun()) == nullptr) {
         interrupt->Idle();  // No one to run, wait for an interrupt.

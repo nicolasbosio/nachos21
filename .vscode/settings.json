@@ -2,6 +2,12 @@
     "C_Cpp.dimInactiveRegions": false,
     "files.associations": {
         "fstream": "cpp",
-        "thread": "cpp"
+        "thread": "cpp",
+        "*.tcc": "c",
+        "numeric": "c",
+        "ostream": "c",
+        "sstream": "c",
+        "optional": "cpp",
+        "type_traits": "cpp"
     }
 }

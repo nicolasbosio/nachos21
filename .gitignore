@@ -3,6 +3,7 @@ userland/
 *.o
 *.depends
 *.coff
+*.hint
 coff2flat
 coff2noff
 disassemble

@@ -1,4 +1,4 @@
-/// Data structures to export a synchronous interface to the raw disk device.
+/// Data structures to export a synchronous interface to the console.
 ///
 /// Copyright (c) 1992-1993 The Regents of the University of California.
 ///               2016-2021 Docentes de la Universidad Nacional de Rosario.
