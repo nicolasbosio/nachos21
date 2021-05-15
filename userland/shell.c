@@ -1,21 +1,10 @@
 #include "syscall.h"
+#include "lib.h"
 
 
 #define MAX_LINE_SIZE  60
 #define MAX_ARG_COUNT  32
 #define ARG_SEPARATOR  ' '
-
-#define NULL  ((void *) 0)
-
-static inline unsigned
-strlen(const char *s)
-{
-    // TODO: how to make sure that `s` is not `NULL`?
-
-    unsigned i;
-    for (i = 0; s[i] != '\0'; i++) {}
-    return i;
-}
 
 static inline void
 WritePrompt(OpenFileId output)
@@ -68,7 +57,7 @@ PrepareArguments(char *line, char **argv, unsigned argvSize)
     unsigned argCount;
 
     argv[0] = line;
-    argCount = 1;
+    argCount = 0;
 
     // Traverse the whole line and replace spaces between arguments by null
     // characters, so as to be able to treat each argument as a standalone
@@ -81,7 +70,7 @@ PrepareArguments(char *line, char **argv, unsigned argvSize)
     //       argument?
     for (unsigned i = 0; line[i] != '\0'; i++) {
         if (line[i] == ARG_SEPARATOR) {
-            if (argCount == argvSize - 1) {
+            if (argCount == argvSize) {
                 // The maximum of allowed arguments is exceeded, and
                 // therefore the size of `argv` is too.  Note that 1 is
                 // decreased in order to leave space for the NULL at the end.
@@ -92,7 +81,6 @@ PrepareArguments(char *line, char **argv, unsigned argvSize)
             argCount++;
         }
     }
-
     argv[argCount] = NULL;
     return 1;
 }
@@ -112,20 +100,40 @@ main(void)
             continue;
         }
 
-        if (PrepareArguments(line, argv, MAX_ARG_COUNT) == 0) {
+        int joinable = 1;
+        char *ptr = line;
+        if (line[0] == '&')
+        {
+            ptr = line + 1;
+            joinable = 0;
+        }
+
+        if (PrepareArguments(ptr, argv, MAX_ARG_COUNT) == 0) {
             WriteError("too many arguments.", OUTPUT);
             continue;
         }
 
         // Comment and uncomment according to whether command line arguments
         // are given in the system call or not.
-        const SpaceId newProc = Exec(line);
-        //const SpaceId newProc = Exec(line, argv);
+        
+        SpaceId newProc;
+        if (argv[0] == NULL)
+        {
+            newProc = Exec(ptr, joinable, NULL);
+        }
+        else
+        {
+            newProc = Exec(ptr, joinable, argv);
+        }
 
         // TODO: check for errors when calling `Exec`; this depends on how
         //       errors are reported.
 
-        Join(newProc);
+        if(joinable)
+        {
+            Join(newProc);
+        }
+
         // TODO: is it necessary to check for errors after `Join` too, or
         //       can you be sure that, with the implementation of the system
         //       call handler you made, it will never give an error?; what

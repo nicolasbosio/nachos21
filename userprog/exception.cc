@@ -29,7 +29,11 @@
 #include "threads/thread.hh"
 #include "synch_console.hh"
 #include "address_space.hh"
+#include "args.hh"
 #include <stdio.h>
+#include <stdlib.h> ///BORRAR
+
+#define MAX_SPACE 10
 
 static void
 IncrementPC()
@@ -44,11 +48,60 @@ IncrementPC()
     machine->WriteRegister(NEXT_PC_REG, pc);
 }
 
-void newThread(void *name)
+////////////// BORRRAR
+int trans (int addr) {
+    char buffer[4];
+    ReadBufferFromUser(addr, buffer, 4);
+    int dato = 0;
+    machine->ReadMem(addr, 4, &dato);
+    printf("A MANO, Direccion: %d - Dato %d\n",addr, dato);
+    
+    //char fuckingBuffer[4];
+    //ReadBufferFromUser(addr, fuckingBuffer, 4);
+    printf("BUFFER TRANS %s\n", buffer);
+    return 0;
+}
+
+////////////// BORRRAR
+void newThread(void *arg)
 {
+    char** argv = (char**) arg;
+    //////////BORRAR
+    if(argv != nullptr) {
+        for (int i=0;argv[i];++i) printf("%s\n", argv[i]); //BORRAR
+    }
+    ////BORRAR
+
     currentThread->space->InitRegisters(); // Set the initial register values.
     currentThread->space->RestoreState();  // Load page table register.
-
+    printf("Estoy en el hilo %s\n", currentThread->GetName()); //BORRAR
+    int sp = machine->ReadRegister(STACK_REG);
+    if(arg != nullptr) {
+        sp = machine->ReadRegister(STACK_REG);
+        printf("STACK 1: %d\n", sp); //BORRAR
+        unsigned int count = 0;
+        if(argv != nullptr) {
+            count = WriteArgs(argv);
+        }
+        printf("COUNT: %d\n", count); //BORRAR
+        sp = machine->ReadRegister(STACK_REG);
+        printf("STACK 2: %d\n", sp); //BORRAR
+        machine->WriteRegister(4, count); //argc
+        machine->WriteRegister(5, sp); //argv
+        machine->WriteRegister(STACK_REG, sp - 16);
+    }
+    
+    ////////////// BORRRAR
+    /*
+    if(argv != nullptr) {
+        char buffer[20];
+        ReadStringFromUser(3284 ,buffer,20);
+        printf("ARG: %s\n",buffer);
+        int desreference = trans(3284);   
+        //interrupt->Halt();
+    }
+    */
+    ////////////// BORRRAR
     machine->Run(); // Jump to the user progam.
 }
 
@@ -142,7 +195,7 @@ SyscallHandler(ExceptionType _et)
             }
             DEBUG('e', "`Create` requested for file `%s`.\n", filename);
 
-            if(!fileSystem->Create(filename, 1000)){
+            if(!fileSystem->Create(filename, 100)){
                 machine->WriteRegister(2, -1);
                 DEBUG('e', "Error: Failed to create the file: %s\n", filename);
                 break;
@@ -153,10 +206,13 @@ SyscallHandler(ExceptionType _et)
         }
 
         case SC_EXEC: {
-
             DEBUG('e', "Request for Starting process\n");
             /////////////////////////////////// VER DE REEMPLAZAR CON UNA LLAMADA A OPEN
             int filenameAddr = machine->ReadRegister(4);
+            int joinable = machine->ReadRegister(5);
+            int argvAddr = machine->ReadRegister(6);
+            
+
             if (filenameAddr == 0)
             {
                 machine->WriteRegister(2, -1);
@@ -177,7 +233,7 @@ SyscallHandler(ExceptionType _et)
             DEBUG('e', "'Exec' Request for file `%s`.\n", filename);
             char *threadName = new char[FILE_NAME_MAX_LEN + 1];
             sprintf(threadName, "%s", filename);
-            Thread *child = new Thread(threadName, true, 5);
+            Thread *child = new Thread(threadName, joinable, 5);
 
             DEBUG('e', "`Open` requested for filename %s.\n", filename);
 
@@ -191,17 +247,31 @@ SyscallHandler(ExceptionType _et)
             }
             child->space = newSpace;
             int i = 0;
-            for ( ; i < 10 ; i++) {
-                if(tableThread[i].space == NULL) {
-                    tableThread[i].space = (SpaceId*)newSpace;
-                    tableThread[i].thread = child;
-                    break;
+            
+            if(joinable)
+            {
+                for (; i < MAX_SPACE; i++)
+                {
+                    if (tableThread[i].space == NULL)
+                    {
+                        tableThread[i].space = (SpaceId *)newSpace;
+                        tableThread[i].thread = child;
+                        break;
+                    }
                 }
+                DEBUG('e', "Success in tableThread for %s\n", filename);
+            }
+            else
+            {
+                i = MAX_SPACE + 1;
             }
 
-            child->Fork(newThread, nullptr);
+            char **args = nullptr;
+            if (argvAddr != 0)
+                args = SaveArgs(argvAddr);
+            child->Fork(newThread, args);
 
-            // DEBUG('e', "Success in Exec for %s\n", filename);
+            DEBUG('e', "Success in Exec for %s\n", filename);
 
             delete file;
 
@@ -217,18 +287,18 @@ SyscallHandler(ExceptionType _et)
             // VER TODAS LAS CONDICIONES DONDE PUEDE FALLAR
             // ESTO DEBERIA PONER UN HILO A CORRER PARA CHEQUEAR QUE EL QUE ESTOY ESPERANDO TERMINE????
             int index = machine->ReadRegister(4);
-            DEBUG('e', "´Join´ called for space %p\n", tableThread[index].space);
-            Thread *thread = tableThread[index].thread;
-            // for (int i = 0; i < 10; i++)
-            // {
-            //     if(i == index) {
-            //         thread = tableThread[i].thread;
-            //         break;
-            //     }
-            // }
-            DEBUG('e', "´Join Tread´ called for thread %s\n", thread->GetName());
-            thread->Join();
-            machine->WriteRegister(2, 1);
+            if(index < MAX_SPACE && index > 0) {
+                DEBUG('e', "´Join´ called for space %p\n", tableThread[index].space);
+                Thread *thread = tableThread[index].thread;
+                DEBUG('e', "´Join Tread´ called for thread %s\n", thread->GetName());
+                int ret = thread->Join();
+                machine->WriteRegister(2, ret);
+                //delete tableThread[index].space;
+            }
+            else {
+                // ERROR JOIN SOBRE PROCESO NO JOINEABLE
+                machine->WriteRegister(2, -1);
+            }
             break;
         }
 
@@ -262,8 +332,6 @@ SyscallHandler(ExceptionType _et)
 
         case SC_EXIT: {
             //HALT if there is nothing left to run
-            //Delete bitmap
-            delete currentThread->space;
             currentThread->Finish(machine->ReadRegister(4));
             break;
         }
@@ -335,9 +403,9 @@ SyscallHandler(ExceptionType _et)
             DEBUG('e', "`Read` requested for id %u.\n", fid);
 
             char dest[size];
-            WriteStringToUser(dest, bufferDest);
             if (fid == CONSOLE_INPUT) { ///CONSOLA
                 synchConsole->Read(dest, size);
+                WriteStringToUser(dest, bufferDest);
             }
             else { ///ARCHIVO
                 OpenFile* file = currentThread->GetOpenFileByFileId(fid);
@@ -368,7 +436,7 @@ SyscallHandler(ExceptionType _et)
             
             DEBUG('e', "`Write` requested for id %u.\n", fid);
 
-            char out[size];
+            char out[size + 1];
             ReadBufferFromUser(bufferSource, out, size);
             if (fid == CONSOLE_OUTPUT ) {
                 DEBUG('e', "Console output\n");
@@ -382,6 +450,8 @@ SyscallHandler(ExceptionType _et)
                     machine->WriteRegister(2, -1);
                     break;
                 }
+
+                out[size] = '\0';
 
                 file->Write(out, (unsigned)size);
                 //delete file; // PROBAR

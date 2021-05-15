@@ -45,6 +45,7 @@ THREAD_HDR = threads/condition.hh             \
              threads/system.hh                \
              threads/thread.hh                \
              threads/thread_test.hh           \
+             threads/thread_test_damian.hh           \
              threads/thread_test_channel.hh     \
              threads/thread_test_scheduler.hh \
              threads/thread_test_garden.hh    \
@@ -72,6 +73,7 @@ THREAD_SRC = threads/main.cc                  \
              threads/switch.S                 \
              threads/thread.cc                \
              threads/thread_test.cc           \
+             threads/thread_test_damian.cc           \
              threads/thread_test_channel.cc     \
              threads/thread_test_scheduler.cc \
              threads/thread_test_garden.cc    \

@@ -4,8 +4,10 @@ userland/
 *.depends
 *.coff
 *.hint
+*.txt
 coff2flat
 coff2noff
 disassemble
 readnoff
 nachos
+.vsls.json

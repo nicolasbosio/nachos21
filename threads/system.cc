@@ -239,6 +239,8 @@ Initialize(int argc, char **argv)
         tableThread[i].space = nullptr;
         //tableThread[i].thread = nullptr; // esto rompe nose porque
     }
+    if(!randomYield)
+        timer = new Timer(TimerInterruptHandler, 0, false);
     SetExceptionHandlers();
 #endif
 

@@ -14,15 +14,13 @@ void ReadBufferFromUser(int userAddress, char *outBuffer,
 {
     ASSERT(userAddress != 0);
     ASSERT(outBuffer != nullptr);
+    ASSERT(byteCount > 0);
 
-    if(byteCount != 0) {
-        unsigned count = 0;
-        do {
-            int temp;
-            count++;
-            ASSERT(machine->ReadMem(userAddress++, 1, &temp));
-            *outBuffer++ = (unsigned char) temp;
-        } while (count < byteCount);
+    unsigned count = 0;
+    while (count < byteCount) {
+        int temp;
+        ASSERT(machine->ReadMem(userAddress++, 1, &temp));
+        *(outBuffer + count++) = (unsigned char) temp;
     }
 }
 

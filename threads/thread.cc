@@ -231,7 +231,6 @@ Thread::Yield()
     Thread *nextThread = scheduler->FindNextToRun();
     if (nextThread != nullptr) {
         scheduler->ReadyToRun(this);
-        DEBUG('t', "About to run thread \"%s\"\n", GetName());
         scheduler->Run(nextThread);
     }
 
@@ -276,8 +275,10 @@ int
 Thread::Join()
 {
     while(!scheduler->IsZombie(this)) {
-        interrupt->SetLevel(INT_OFF);
-        currentThread->Sleep();
+        //HACER UN YIELD EN VEZ DE EL SLEEP??
+        //interrupt->SetLevel(INT_OFF);
+        //currentThread->Sleep();
+        currentThread->Yield();
     }
     int ret = returnStatus;
     delete this;
