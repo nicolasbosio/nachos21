@@ -31,7 +31,6 @@
 #include "address_space.hh"
 #include "args.hh"
 #include <stdio.h>
-#include <stdlib.h> ///BORRAR
 
 #define MAX_SPACE 10
 
@@ -48,60 +47,24 @@ IncrementPC()
     machine->WriteRegister(NEXT_PC_REG, pc);
 }
 
-////////////// BORRRAR
-int trans (int addr) {
-    char buffer[4];
-    ReadBufferFromUser(addr, buffer, 4);
-    int dato = 0;
-    machine->ReadMem(addr, 4, &dato);
-    printf("A MANO, Direccion: %d - Dato %d\n",addr, dato);
-    
-    //char fuckingBuffer[4];
-    //ReadBufferFromUser(addr, fuckingBuffer, 4);
-    printf("BUFFER TRANS %s\n", buffer);
-    return 0;
-}
-
-////////////// BORRRAR
 void newThread(void *arg)
 {
     char** argv = (char**) arg;
-    //////////BORRAR
-    if(argv != nullptr) {
-        for (int i=0;argv[i];++i) printf("%s\n", argv[i]); //BORRAR
-    }
-    ////BORRAR
-
+   
     currentThread->space->InitRegisters(); // Set the initial register values.
     currentThread->space->RestoreState();  // Load page table register.
-    printf("Estoy en el hilo %s\n", currentThread->GetName()); //BORRAR
     int sp = machine->ReadRegister(STACK_REG);
     if(arg != nullptr) {
         sp = machine->ReadRegister(STACK_REG);
-        printf("STACK 1: %d\n", sp); //BORRAR
         unsigned int count = 0;
         if(argv != nullptr) {
             count = WriteArgs(argv);
         }
-        printf("COUNT: %d\n", count); //BORRAR
         sp = machine->ReadRegister(STACK_REG);
-        printf("STACK 2: %d\n", sp); //BORRAR
         machine->WriteRegister(4, count); //argc
         machine->WriteRegister(5, sp); //argv
         machine->WriteRegister(STACK_REG, sp - 16);
     }
-    
-    ////////////// BORRRAR
-    /*
-    if(argv != nullptr) {
-        char buffer[20];
-        ReadStringFromUser(3284 ,buffer,20);
-        printf("ARG: %s\n",buffer);
-        int desreference = trans(3284);   
-        //interrupt->Halt();
-    }
-    */
-    ////////////// BORRRAR
     machine->Run(); // Jump to the user progam.
 }
 
@@ -207,7 +170,8 @@ SyscallHandler(ExceptionType _et)
 
         case SC_EXEC: {
             DEBUG('e', "Request for Starting process\n");
-            /////////////////////////////////// VER DE REEMPLAZAR CON UNA LLAMADA A OPEN
+            //VER DE REEMPLAZAR CON UNA LLAMADA A OPEN
+            //////////////////////////////////////////////////////////////////////
             int filenameAddr = machine->ReadRegister(4);
             int joinable = machine->ReadRegister(5);
             int argvAddr = machine->ReadRegister(6);
@@ -238,7 +202,7 @@ SyscallHandler(ExceptionType _et)
             DEBUG('e', "`Open` requested for filename %s.\n", filename);
 
             OpenFile *file = fileSystem->Open(filename);
-            ////////////////////////////
+            //////////////////////////////////////////////////////////////////////
 
             AddressSpace *newSpace = new AddressSpace(file);
             if(!newSpace->IsInitialized()) {
@@ -276,16 +240,10 @@ SyscallHandler(ExceptionType _et)
             delete file;
 
             machine->WriteRegister(2, i);
-            //scheduler->Print();
-            //REMINDER DE QUE SOMOS COMPLETAMENTE RETRASADOS
-            //Y MERECEMOS LA MUERTE POR NO SABER COMO PORONGA FUNCIONA UN SWITCH
-            //SDS
             break;
         }
 
         case SC_JOIN: {
-            // VER TODAS LAS CONDICIONES DONDE PUEDE FALLAR
-            // ESTO DEBERIA PONER UN HILO A CORRER PARA CHEQUEAR QUE EL QUE ESTOY ESPERANDO TERMINE????
             int index = machine->ReadRegister(4);
             if(index < MAX_SPACE && index > 0) {
                 DEBUG('e', "´Join´ called for space %p\n", tableThread[index].space);
@@ -293,10 +251,10 @@ SyscallHandler(ExceptionType _et)
                 DEBUG('e', "´Join Tread´ called for thread %s\n", thread->GetName());
                 int ret = thread->Join();
                 machine->WriteRegister(2, ret);
-                //delete tableThread[index].space;
+                //delete tableThread[index].space; //DUDA EXISTENCIAL
             }
             else {
-                // ERROR JOIN SOBRE PROCESO NO JOINEABLE
+                DEBUG('e', "´Join process´ called for a process no joineable\n");
                 machine->WriteRegister(2, -1);
             }
             break;
@@ -332,6 +290,7 @@ SyscallHandler(ExceptionType _et)
 
         case SC_EXIT: {
             //HALT if there is nothing left to run
+            //Revisar esto
             currentThread->Finish(machine->ReadRegister(4));
             break;
         }
@@ -403,11 +362,11 @@ SyscallHandler(ExceptionType _et)
             DEBUG('e', "`Read` requested for id %u.\n", fid);
 
             char dest[size];
-            if (fid == CONSOLE_INPUT) { ///CONSOLA
+            if (fid == CONSOLE_INPUT) {
                 synchConsole->Read(dest, size);
                 WriteStringToUser(dest, bufferDest);
             }
-            else { ///ARCHIVO
+            else {
                 OpenFile* file = currentThread->GetOpenFileByFileId(fid);
                 if(!file)
                 {
@@ -454,7 +413,6 @@ SyscallHandler(ExceptionType _et)
                 out[size] = '\0';
 
                 file->Write(out, (unsigned)size);
-                //delete file; // PROBAR
             }
             machine->WriteRegister(2, 1);
             break;

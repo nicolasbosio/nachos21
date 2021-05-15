@@ -54,8 +54,8 @@ Thread::Thread(const char *threadName, bool joinable, unsigned int initialPriori
 #ifdef USER_PROGRAM
     space    = nullptr;
     fileTable = new Table<OpenFile*>();
-    fileTable->Add(NULL); // REPRESENTA LAS ENTRADAS DE CONSOLA
-    fileTable->Add(NULL); // REPRESENTA LAS ENTRADAS DE CONSOLA
+    fileTable->Add(NULL); // Fd falsos para simular consola
+    fileTable->Add(NULL); // Fd falsos para simular consola
 #endif
 }
 
@@ -110,7 +110,6 @@ Thread::Fork(VoidFunctionPtr func, void *arg)
     IntStatus oldLevel = interrupt->SetLevel(INT_OFF);
     scheduler->ReadyToRun(this); // `ReadyToRun` assumes that interrupts
                                  // are disabled!
-    // DEBUG('t', "About to set interrupt level to old from thread \"%s\"\n", GetName());
     interrupt->SetLevel(oldLevel);
 }
 
@@ -275,9 +274,6 @@ int
 Thread::Join()
 {
     while(!scheduler->IsZombie(this)) {
-        //HACER UN YIELD EN VEZ DE EL SLEEP??
-        //interrupt->SetLevel(INT_OFF);
-        //currentThread->Sleep();
         currentThread->Yield();
     }
     int ret = returnStatus;

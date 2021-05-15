@@ -13,7 +13,7 @@
 
 void Hello(void* args) {
     puts("Hola mundo!");
-    scheduler->Print();
+    //scheduler->Print();
 }
 
 void ThreadTestDamian() {
@@ -25,15 +25,10 @@ void ThreadTestDamian() {
       hilos[i] = newThread;
       newThread->Fork(Hello, (void *) name);
     }
-    scheduler->Print();
-
-    ////////////////
-    
+    //scheduler->Print();
     for(int i = 0; i < 5; i++) {
       hilos[i]->Join();
     }
-    
-    ///////////////////////
     //currentThread->Yield();
     puts("Fin");
 }

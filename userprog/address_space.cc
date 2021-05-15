@@ -19,33 +19,30 @@
 AddressSpace::AddressSpace(OpenFile *executable_file)
 {
     initialized = false;
-    /// NO HACER ASSERT ESTO ROMPE EN LLAMADA A SISTEMA
     if(executable_file == nullptr) {
-        DEBUG('a', "No executable to run\n"); //COMPLETAR
+        DEBUG('a', "No executable to run\n");
         return;
     }
 
     Executable exe (executable_file);
     if (!exe.CheckMagic()) {
-        DEBUG('a', "2\n"); //COMPLETAR
+        DEBUG('a', "Not Nachos executable file\n");
         return;
     }
 
     // How big is address space?
-
     unsigned size = exe.GetSize() + USER_STACK_SIZE;
-      // We need to increase the size to leave room for the stack.
-    DEBUG('a', "Cantidad de paginas libres %d\n", bitmap->CountClear()); //TRADUCIR
+    // We need to increase the size to leave room for the stack.
+    DEBUG('a', "Cantidad de paginas libres %d\n", bitmap->CountClear());
     numPages = DivRoundUp(size, PAGE_SIZE);
-    DEBUG('a', "Cantidad de paginas asignadas al proceso %d\n", numPages); //TRADUCIR
+    DEBUG('a', "Cantidad de paginas asignadas al proceso %d\n", numPages);
     
     size = numPages * PAGE_SIZE;
 
     // Check we are not trying to run anything too big -- at least until we
     // have virtual memory.
     if(numPages > bitmap->CountClear()) {
-        DEBUG('a', "La cantidad de paginas requeridas no alcanza\n"); //TRADUCIR
-        //BREAK
+        DEBUG('a', "La cantidad de paginas requeridas no alcanza\n");
         return;
     }
 
@@ -53,7 +50,6 @@ AddressSpace::AddressSpace(OpenFile *executable_file)
           numPages, size);
 
     // First, set up the translation.
-
     pageTable = new TranslationEntry[numPages];
     for (unsigned i = 0; i < numPages; i++) {
         pageTable[i].virtualPage  = i;
@@ -70,7 +66,6 @@ AddressSpace::AddressSpace(OpenFile *executable_file)
 
     // Zero out the entire address space, to zero the unitialized data
     // segment and the stack segment.
-    //memset(mainMemory, 0, size); //BORRAR
     for(unsigned i = 0; i < numPages ; i++)
         memset(&mainMemory[pageTable[i].physicalPage * PAGE_SIZE], 0, PAGE_SIZE);
 
@@ -111,7 +106,7 @@ AddressSpace::AddressSpace(OpenFile *executable_file)
         }
     }
     initialized = true;
-    DEBUG('a', "Inicializacion de address space correcta\n"); //TRADUCIR
+    DEBUG('a', "Inicializacion de address space correcta\n");
 }
 
 /// Deallocate an address space.

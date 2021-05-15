@@ -8,8 +8,6 @@
 #include "threads/system.hh"
 
 #include <string.h>
-#include <stdio.h> //BORRAR
-
 
 static const unsigned MAX_ARG_COUNT  = 32;
 static const unsigned MAX_ARG_LENGTH = 128;
@@ -86,9 +84,7 @@ WriteArgs(char **args)
         if (args[c] == nullptr) {   // If the last was reached, terminate.
             break;
         }
-        printf("SP0: %d\n", sp); //BORRAR
         sp -= strlen(args[c]) + 1;  // Decrease SP (leave one byte for \0).
-        printf("SP1: %d\n", sp); //BORRAR
         WriteStringToUser(args[c], sp);  // Write the string there.
         argsAddress[c] = sp;        // Save the argument's address.
         delete args[c];             // Free the string.
@@ -97,15 +93,11 @@ WriteArgs(char **args)
     ASSERT(c < MAX_ARG_COUNT);
 
     sp -= sp % 4;     // Align the stack to a multiple of four.
-    printf("SP2: %d\n", sp); //BORRAR
     sp -= c * 4 + 4;  // Make room for `argv`, including the trailing null.
-    printf("SP3: %d\n", sp); //BORRAR
     // Write each argument's address.
     for (unsigned i = 0; i < c; i++) {
-        printf("SPFOR: %d\n", sp + 4 * i); //BORRAR
         machine->WriteMem(sp + 4 * i, 4, argsAddress[i]);
     }
-    printf("SPNULL: %d\n", sp + 4 * c); //BORRAR
     machine->WriteMem(sp + 4 * c, 4, 0);  // The last is null.
 
     machine->WriteRegister(STACK_REG, sp);

@@ -21,7 +21,7 @@ main(void)
         buffer[--i] = '\0';
 
         if (i > 0) {
-            newProc = Exec(buffer, NULL);
+            newProc = Exec(buffer, 1, NULL);
             Join(newProc);
         }
         

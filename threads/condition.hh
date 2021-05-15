@@ -19,9 +19,7 @@
 
 
 #include "lock.hh"
-//#include "thread.hh"
 #include "lib/list.hh"
-//#include "semaphore.hh"
 
 
 

@@ -70,7 +70,7 @@ PrepareArguments(char *line, char **argv, unsigned argvSize)
     //       argument?
     for (unsigned i = 0; line[i] != '\0'; i++) {
         if (line[i] == ARG_SEPARATOR) {
-            if (argCount == argvSize) {
+            if (argCount == argvSize - 1) {
                 // The maximum of allowed arguments is exceeded, and
                 // therefore the size of `argv` is too.  Note that 1 is
                 // decreased in order to leave space for the NULL at the end.

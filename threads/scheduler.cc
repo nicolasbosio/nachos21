@@ -62,9 +62,6 @@ Scheduler::MakeZombie(Thread *toZombie){
     DEBUG('t', "Putting thread %s on zombie list\n", toZombie->GetName());
     toZombie->SetStatus(ZOMBIE);
     zombieList->Append(toZombie);
-    //Thread *father = toZombie->GetFather(toZombie);
-    //CONDICION
-    //scheduler->ReadyToRun(father);
 }
 
 ///
@@ -83,7 +80,6 @@ Scheduler::FindNextToRun()
 {
     for (unsigned int i = MAX_PRIORITY - 1 ; i > 0 ; i--)
     {
-        //DEBUG('t', "FindNextToRun with priority: %d\n", i);
         if(!readyList[i]->IsEmpty())
             return readyList[i]->Pop();
     }
