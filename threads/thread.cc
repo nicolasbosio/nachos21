@@ -53,6 +53,9 @@ Thread::Thread(const char *threadName, bool joinable, unsigned int initialPriori
     threadFather = currentThread;
 #ifdef USER_PROGRAM
     space    = nullptr;
+    fileTable = new Table<OpenFile*>();
+    fileTable->Add(NULL); // Fd falsos para simular consola
+    fileTable->Add(NULL); // Fd falsos para simular consola
 #endif
 }
 
@@ -73,6 +76,9 @@ Thread::~Thread()
         SystemDep::DeallocBoundedArray((char *) stack,
                                        STACK_SIZE * sizeof *stack);
     }
+#ifdef USER_PROGRAM
+    delete fileTable;
+#endif
 }
 
 /// Invoke `(*func)(arg)`, allowing caller and callee to execute
@@ -102,8 +108,8 @@ Thread::Fork(VoidFunctionPtr func, void *arg)
     StackAllocate(func, arg);
 
     IntStatus oldLevel = interrupt->SetLevel(INT_OFF);
-    scheduler->ReadyToRun(this);  // `ReadyToRun` assumes that interrupts
-                                  // are disabled!
+    scheduler->ReadyToRun(this); // `ReadyToRun` assumes that interrupts
+                                 // are disabled!
     interrupt->SetLevel(oldLevel);
 }
 
@@ -162,7 +168,6 @@ Thread::RestorePriority() {
     priority = oldPriority;
 }
 
-
 void
 Thread::Print() const
 {
@@ -181,11 +186,11 @@ Thread::Print() const
 /// NOTE: we disable interrupts, so that we do not get a time slice between
 /// setting `threadToBeDestroyed`, and going to sleep.
 void
-Thread::Finish()
+Thread::Finish(int retVal)
 {
     interrupt->SetLevel(INT_OFF);
     ASSERT(this == currentThread);
-
+    returnStatus = retVal;
     DEBUG('t', "Finishing thread \"%s\"\n", GetName());
 
     if(selfDestruct)
@@ -254,8 +259,9 @@ Thread::Sleep()
     DEBUG('t', "Sleeping thread \"%s\"\n", GetName());
 
     Thread *nextThread;
-    if(selfDestruct)
+    if(selfDestruct) {
         status = BLOCKED;
+    }
     while ((nextThread = scheduler->FindNextToRun()) == nullptr) {
         interrupt->Idle();  // No one to run, wait for an interrupt.
     }
@@ -264,14 +270,15 @@ Thread::Sleep()
 }
 
 ///Descripcion del join
-void
+int
 Thread::Join()
 {
     while(!scheduler->IsZombie(this)) {
-        interrupt->SetLevel(INT_OFF);
-        currentThread->Sleep();
+        currentThread->Yield();
     }
+    int ret = returnStatus;
     delete this;
+    return ret;
 }
 
 
@@ -283,7 +290,7 @@ Thread::Join()
 static void
 ThreadFinish()
 {
-    currentThread->Finish();
+    currentThread->Finish(0);
 }
 
 static void
@@ -354,6 +361,29 @@ Thread::RestoreUserState()
     for (unsigned i = 0; i < NUM_TOTAL_REGS; i++) {
         machine->WriteRegister(i, userRegisters[i]);
     }
+}
+
+int
+Thread::AddOpenFile(OpenFile* openFile)
+{
+    return fileTable->Add(openFile);
+}
+
+bool Thread::DeleteOpenFile(int fid)
+{
+    if(fileTable->HasKey(fid))
+    {
+        OpenFile* file = fileTable->Remove(fid);
+        delete file;
+        return true;
+    }
+    return false;
+}
+
+OpenFile*
+Thread::GetOpenFileByFileId(int fid)
+{
+    return fileTable->Get(fid);
 }
 
 #endif

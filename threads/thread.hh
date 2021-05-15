@@ -41,9 +41,12 @@
 
 #include "lib/utility.hh"
 
+
 #ifdef USER_PROGRAM
 #include "machine/machine.hh"
 #include "userprog/address_space.hh"
+#include "lib/table.hh"
+#include "filesys/open_file.hh"
 #endif
 
 #include <stdint.h>
@@ -62,9 +65,9 @@ const unsigned MACHINE_STATE_SIZE = 17;
 /// WATCH OUT IF THIS IS NOT BIG ENOUGH!!!!!
 const unsigned STACK_SIZE = 4 * 1024;
 
-/// completar
+/// Priority Queue max priority
 ///
-///
+/// Where 0 is least priority
 const unsigned MAX_PRIORITY = 10;
 
 /// Thread state.
@@ -122,10 +125,10 @@ public:
     void Sleep();
 
     ///Join the thread
-    void Join();
+    int Join();
 
     /// The thread is done executing.
-    void Finish();
+    void Finish(int retVal);
 
     /// Check if thread has overflowed its stack.
     void CheckOverflow() const;
@@ -165,6 +168,7 @@ private:
     Thread *threadFather;
     unsigned int priority;
     unsigned int oldPriority;
+    int returnStatus;
 
 #ifdef USER_PROGRAM
     /// User-level CPU register state.
@@ -173,6 +177,7 @@ private:
     /// registers -- one for its state while executing user code, one for its
     /// state while executing kernel code.
     int userRegisters[NUM_TOTAL_REGS];
+    Table<OpenFile*> *fileTable;
 
 public:
 
@@ -184,6 +189,13 @@ public:
 
     // User code this thread is running.
     AddressSpace *space;
+
+    int AddOpenFile(OpenFile *openFile);
+
+    bool DeleteOpenFile(int fid);
+
+    OpenFile* GetOpenFileByFileId(int fid);
+
 #endif
 };
 

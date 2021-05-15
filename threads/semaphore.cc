@@ -23,6 +23,7 @@
 
 #include "semaphore.hh"
 #include "system.hh"
+#include <stdio.h>
 
 
 /// Initialize a semaphore, so that it can be used for synchronization.
@@ -62,7 +63,6 @@ Semaphore::P()
 {
     IntStatus oldLevel = interrupt->SetLevel(INT_OFF);
       // Disable interrupts.
-
     while (value == 0) {  // Semaphore not available.
         queue->Append(currentThread);  // So go to sleep.
         currentThread->Sleep();

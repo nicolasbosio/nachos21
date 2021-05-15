@@ -9,7 +9,6 @@
 
 #include <string.h>
 
-
 static const unsigned MAX_ARG_COUNT  = 32;
 static const unsigned MAX_ARG_LENGTH = 128;
 

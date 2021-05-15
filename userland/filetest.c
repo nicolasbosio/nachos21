@@ -10,6 +10,9 @@
 
 
 #include "syscall.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <assert.h>
 
 
 int
@@ -17,7 +20,14 @@ main(void)
 {
     Create("test.txt");
     OpenFileId o = Open("test.txt");
+    char *args[] = {"HOLAcm7\n"};
+    SpaceId proc1 = Exec("../userland/filetest2", 1, args);
     Write("Hello world\n",12,o);
     Close(o);
-    return 0;
+    Stats();
+    int i = Join(proc1);
+    if (i == 1)
+        Write("Retorno bien el Join\n",29,1);
+    //Halt();
 }
+

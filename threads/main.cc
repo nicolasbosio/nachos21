@@ -92,6 +92,8 @@ void Copy(const char *unixFile, const char *nachosFile);
 void Print(const char *file);
 void PerformanceTest(void);
 void StartProcess(const char *file);
+void SynchConsoleTest(const char *in, const char *out);
+void SynchConsoleTest2(const char *in, const char *out);
 void ConsoleTest(const char *in, const char *out);
 void MailTest(int networkID);
 
@@ -135,7 +137,7 @@ main(int argc, char **argv)
 #ifdef THREADS
         if (!strcmp(*argv, "-tt")) {         // Test the threading subsystem.
             ThreadTest();
-            interrupt->Halt();
+            //interrupt->Halt();
         }
 #endif
 #ifdef USER_PROGRAM
@@ -145,16 +147,17 @@ main(int argc, char **argv)
             argCount = 2;
         } else if (!strcmp(*argv, "-tc")) {  // Test the console.
             if (argc == 1) {
-                ConsoleTest(nullptr, nullptr);
+                SynchConsoleTest(nullptr, nullptr);
             } else {
                 ASSERT(argc > 2);
-                ConsoleTest(*(argv + 1), *(argv + 2));
+                SynchConsoleTest(*(argv + 1), *(argv + 2));
                 argCount = 3;
             }
             interrupt->Halt();  // Once we start the console, then Nachos
                                 // will loop forever waiting for console
                                 // input.
         }
+
 #endif
 #ifdef FILESYS
         if (!strcmp(*argv, "-cp")) {         // Copy from UNIX to Nachos.
@@ -194,7 +197,7 @@ main(int argc, char **argv)
 #endif // NETWORK
     }
 
-    currentThread->Finish();
+    currentThread->Finish(0);
       // NOTE: if the procedure `main` returns, then the program `nachos`
       // will exit (as any other normal program would).  But there may be
       // other threads on the ready list.  We switch to those threads by

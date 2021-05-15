@@ -133,6 +133,14 @@ Close:
         j       $31
         .end    Close
 
+        .globl  Stats
+        .ent    Stats
+Stats:
+        addiu   $2, $0, SC_STATS
+        syscall
+        j       $31
+        .end    Stats
+
 /// Dummy function to keep gcc happy.
         .globl  __main
         .ent    __main

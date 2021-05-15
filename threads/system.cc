@@ -12,11 +12,12 @@
 #ifdef USER_PROGRAM
 #include "userprog/debugger.hh"
 #include "userprog/exception.hh"
+#include "machine/mmu.hh"
 #endif
 
 #include <stdlib.h>
 #include <string.h>
-
+#include <stdio.h>
 
 /// This defines *all* of the global data structures used by Nachos.
 ///
@@ -43,7 +44,10 @@ SynchDisk *synchDisk;
 #endif
 
 #ifdef USER_PROGRAM  // Requires either *FILESYS* or *FILESYS_STUB*.
-Machine *machine;  ///< User program memory and registers.
+Machine *machine;    ///< User program memory and registers.
+Bitmap *bitmap;      ///
+SynchConsole *synchConsole;
+ListThreadSpace tableThread;
 #endif
 
 #ifdef NETWORK
@@ -228,6 +232,15 @@ Initialize(int argc, char **argv)
 #ifdef USER_PROGRAM
     Debugger *d = debugUserProg ? new Debugger : nullptr;
     machine = new Machine(d);  // This must come first.
+    synchConsole = new SynchConsole(nullptr,nullptr);
+    bitmap = new Bitmap(NUM_PHYS_PAGES);
+    tableThread = static_cast<ListThreadSpace>(malloc(sizeof(ListThreadSpace) * 10));
+    for (int i = 0 ; i < 10 ; i++) {
+        tableThread[i].space = nullptr;
+        //tableThread[i].thread = nullptr; // esto rompe nose porque
+    }
+    if(!randomYield)
+        timer = new Timer(TimerInterruptHandler, 0, false);
     SetExceptionHandlers();
 #endif
 
@@ -259,6 +272,8 @@ Cleanup()
 
 #ifdef USER_PROGRAM
     delete machine;
+    //delete synchConsole; //PROBAR: ACT esto tira un doble free hay que revisar donde se borra
+    delete bitmap; //PROBAR
 #endif
 
 #ifdef FILESYS_NEEDED

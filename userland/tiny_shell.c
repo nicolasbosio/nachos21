@@ -1,5 +1,5 @@
 #include "syscall.h"
-
+#include "lib.h"
 
 int
 main(void)
@@ -21,9 +21,10 @@ main(void)
         buffer[--i] = '\0';
 
         if (i > 0) {
-            newProc = Exec(buffer);
+            newProc = Exec(buffer, 1, NULL);
             Join(newProc);
         }
+        
     }
 
     return -1;

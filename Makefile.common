@@ -45,6 +45,7 @@ THREAD_HDR = threads/condition.hh             \
              threads/system.hh                \
              threads/thread.hh                \
              threads/thread_test.hh           \
+             threads/thread_test_damian.hh           \
              threads/thread_test_channel.hh     \
              threads/thread_test_scheduler.hh \
              threads/thread_test_garden.hh    \
@@ -72,6 +73,7 @@ THREAD_SRC = threads/main.cc                  \
              threads/switch.S                 \
              threads/thread.cc                \
              threads/thread_test.cc           \
+             threads/thread_test_damian.cc           \
              threads/thread_test_channel.cc     \
              threads/thread_test_scheduler.cc \
              threads/thread_test_garden.cc    \
@@ -93,6 +95,7 @@ USERPROG_HDR = userprog/address_space.hh            \
                userprog/debugger_command_manager.hh \
                userprog/executable.hh               \
                userprog/transfer.hh                 \
+               userprog/synch_console.hh            \
                filesys/file_system.hh               \
                filesys/open_file.hh                 \
                lib/bitmap.hh                        \
@@ -112,6 +115,7 @@ USERPROG_SRC = userprog/address_space.cc            \
                userprog/exception.cc                \
                userprog/prog_test.cc                \
                userprog/transfer.cc                 \
+               userprog/synch_console.cc            \
                lib/bitmap.cc                        \
                machine/console.cc                   \
                machine/encoding.cc                  \

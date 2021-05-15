@@ -59,14 +59,9 @@ Scheduler::ReadyToRun(Thread *thread)
 void
 Scheduler::MakeZombie(Thread *toZombie){
     ASSERT(toZombie != nullptr);
-
     DEBUG('t', "Putting thread %s on zombie list\n", toZombie->GetName());
-
     toZombie->SetStatus(ZOMBIE);
     zombieList->Append(toZombie);
-    Thread *father = toZombie->GetFather(toZombie);
-    scheduler->ReadyToRun(father);
-    //necesito que ponga en ready to run al hilo padre
 }
 
 ///
@@ -83,7 +78,8 @@ Scheduler::IsZombie(Thread *thread){
 Thread *
 Scheduler::FindNextToRun()
 {
-    for (unsigned int i = MAX_PRIORITY - 1 ; i >= 0 ; i--) {
+    for (unsigned int i = MAX_PRIORITY - 1 ; i > 0 ; i--)
+    {
         if(!readyList[i]->IsEmpty())
             return readyList[i]->Pop();
     }
@@ -176,7 +172,19 @@ ThreadPrint(Thread *t)
 void
 Scheduler::Print()
 {
-    printf("Ready list contents:\n");
-    for(unsigned int i = MAX_PRIORITY - 1 ; i >= 0; i--)
-        readyList[i]->Apply(ThreadPrint);
+    printf("\tScheduler ´STATS´\nCurrent thread working: %s\nReady list contents:\n", currentThread->GetName());
+    for(unsigned int i = MAX_PRIORITY - 1 ; i > 0 ; i--) {
+        printf("\tPriority %d: ", i);
+        if(!readyList[i]->IsEmpty())
+            readyList[i]->Apply(ThreadPrint);
+        else
+            printf("Empty....");
+        printf("\n");
+    }
+    printf("Zombie list contents:\n\t");
+        if(!zombieList->IsEmpty())
+            zombieList->Apply(ThreadPrint);
+        else
+            printf("Empty....");
+        printf("\n");
 }

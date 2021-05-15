@@ -14,6 +14,10 @@
 #include "assert.hh"
 #include "debug.hh"
 
+/// Miscellaneous useful routines.
+
+#define min(a, b) (((a) < (b)) ? (a) : (b))
+#define max(a, b) (((a) > (b)) ? (a) : (b))
 
 /// Useful definitions for diverse data structures.
 

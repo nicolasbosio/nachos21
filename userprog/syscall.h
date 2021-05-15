@@ -31,6 +31,7 @@
 #define SC_CLOSE   13
 #define SC_READ    14
 #define SC_WRITE   15
+#define SC_STATS   16
 
 
 #ifndef IN_ASM
@@ -58,7 +59,7 @@ typedef int SpaceId;
 
 /// Run the executable, stored in the Nachos file `name`, and return the
 /// address space identifier.
-SpaceId Exec(char *name);
+SpaceId Exec(char *name, int joinable, char** argv);
 
 /// Only return once the the user program `id` has finished.
 ///
@@ -116,11 +117,13 @@ int Write(const char *buffer, int size, OpenFileId id);
 /// Return the number of bytes actually read -- if the open file is not long
 /// enough, or if it is an I/O device, and there are not enough characters to
 /// read, return whatever is available (for I/O devices, you should always
-/// wait until you can return at least one character).
+/// wait until you can retustarn at least one character).
 int Read(char *buffer, int size, OpenFileId id);
 
 /// Close the file, we are done reading and writing to it.
 int Close(OpenFileId id);
+
+void Stats();
 
 
 #endif

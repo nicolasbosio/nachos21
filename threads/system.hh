@@ -15,6 +15,7 @@
 #include "machine/interrupt.hh"
 #include "machine/statistics.hh"
 #include "machine/timer.hh"
+#include "userprog/synch_console.hh"
 
 
 /// Initialization and cleanup routines.
@@ -35,7 +36,21 @@ extern Timer *timer;                 ///< The hardware alarm clock.
 
 #ifdef USER_PROGRAM
 #include "machine/machine.hh"
+#include "lib/bitmap.hh"
+#include "lib/table.hh"
+
+typedef int SpaceId;
+typedef struct  
+{
+    SpaceId *space;
+    Thread *thread;
+} ListTS;
+typedef ListTS* ListThreadSpace;
+
 extern Machine *machine;  // User program memory and registers.
+extern SynchConsole *synchConsole;
+extern Bitmap *bitmap;
+extern ListThreadSpace tableThread;
 #endif
 
 #ifdef FILESYS_NEEDED  // *FILESYS* or *FILESYS_STUB*.
