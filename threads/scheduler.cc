@@ -66,8 +66,14 @@ Scheduler::MakeZombie(Thread *toZombie){
 
 ///
 bool
-Scheduler::IsZombie(Thread *thread){
+Scheduler::IsZombie(Thread *thread) {
     return zombieList->Has(thread);
+}
+
+///
+void 
+Scheduler::DeleteZombie(Thread *thread) {
+    zombieList->Remove(thread);
 }
 
 /// Return the next thread to be scheduled onto the CPU.
@@ -78,10 +84,11 @@ Scheduler::IsZombie(Thread *thread){
 Thread *
 Scheduler::FindNextToRun()
 {
-    for (unsigned int i = MAX_PRIORITY - 1 ; i > 0 ; i--)
+    for (unsigned int i = 0 ; i < MAX_PRIORITY ; i++)
     {
-        if(!readyList[i]->IsEmpty())
-            return readyList[i]->Pop();
+        unsigned int index = MAX_PRIORITY - i - 1;
+        if (!readyList[index]->IsEmpty())
+            return readyList[index]->Pop();
     }
     return nullptr;
 }
@@ -173,10 +180,11 @@ void
 Scheduler::Print()
 {
     printf("\tScheduler ´STATS´\nCurrent thread working: %s\nReady list contents:\n", currentThread->GetName());
-    for(unsigned int i = MAX_PRIORITY - 1 ; i > 0 ; i--) {
-        printf("\tPriority %d: ", i);
-        if(!readyList[i]->IsEmpty())
-            readyList[i]->Apply(ThreadPrint);
+    for(unsigned int i = 0 ; i < MAX_PRIORITY ; i++) {
+        unsigned int index = MAX_PRIORITY - i - 1;
+        printf("\tPriority %d: ", index);
+        if(!readyList[index]->IsEmpty())
+            readyList[index]->Apply(ThreadPrint);
         else
             printf("Empty....");
         printf("\n");

@@ -1,7 +1,7 @@
 /// Outputs arguments entered on the command line.
 
 #include "syscall.h"
-
+#include "../userprog/syscall.h" // Include fix IntelliSense
 
 unsigned
 StringLength(const char *s)
@@ -31,7 +31,7 @@ PrintChar(char c)
 int
 main(int argc, char *argv[])
 {
-    for (unsigned i = 1; i < argc; i++) {
+    for (unsigned i = 0; i < argc; i++) {
         if (i != 1) {
             PrintChar(' ');
         }

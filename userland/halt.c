@@ -10,6 +10,7 @@
 
 
 #include "syscall.h"
+#include "../userprog/syscall.h" // Include fix IntelliSense
 
 
 int
