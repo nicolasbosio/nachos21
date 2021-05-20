@@ -46,6 +46,7 @@ MMU::MMU()
     for (unsigned i = 0; i < TLB_SIZE; i++) {
         tlb[i].valid = false;
     }
+    tlbPage = 0;
     pageTable = nullptr;
 #else  // Use linear page table.
     tlb = nullptr;
@@ -77,6 +78,21 @@ MMU::PrintTLB() const
 #else
     printf("TLB not present in the machine.\n");
 #endif
+}
+
+bool 
+MMU::SetTlbPage(TranslationEntry pageTranslation)
+{
+    /* COMPLETAR CHEQUEOS
+    if(pageTranslation == nullptr) {
+        DEBUG('a', "");
+        return false;
+    }
+    */
+    DEBUG('a', "Set Tlb in page: %d\n", tlbPage);
+    tlb[tlbPage] = pageTranslation;
+    tlbPage = (tlbPage + 1) % TLB_SIZE;
+    return true;
 }
 
 /// Read `size` (1, 2, or 4) bytes of virtual memory at `addr` into

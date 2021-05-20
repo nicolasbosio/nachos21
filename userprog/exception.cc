@@ -44,7 +44,8 @@ IncrementPC()
     machine->WriteRegister(NEXT_PC_REG, pc);
 }
 
-void newThread(void *arg)
+void 
+newThread(void *arg)
 {
     char** argv = (char**) arg;
     currentThread->space->InitRegisters(); // Set the initial register values.
@@ -169,7 +170,6 @@ SyscallHandler(ExceptionType _et)
             int joinable = machine->ReadRegister(5);
             int argvAddr = machine->ReadRegister(6);
             
-
             if (filenameAddr == 0)
             {
                 machine->WriteRegister(2, -1);
@@ -456,6 +456,30 @@ SyscallHandler(ExceptionType _et)
     IncrementPC();
 }
 
+static void
+PageFaultHandler(ExceptionType _et) 
+{    
+    unsigned badVAddr = machine->ReadRegister(BAD_VADDR_REG);
+    unsigned int numPage = badVAddr / PAGE_SIZE;
+    DEBUG('e', "'Mem handler exeption' Virtual addres not found in tlb: %d ; Page: %d\n", badVAddr, numPage);
+    // con la direccion virtual que nos llega tenemos que ir a la pagetable de el proceso
+    TranslationEntry pageTranslation = currentThread->space->GetTranslationEntry(numPage);
+
+    MMU *mmu = machine->GetMMU();
+    /// que hacer si falla el setTlb
+    mmu->SetTlbPage(pageTranslation);
+    //DEBUG('e', " ", );
+    //mmu->PrintTLB();
+    //DECREMENTAR PC??
+}
+
+static void
+ReadOnlyExeption(ExceptionType _et)
+{
+    unsigned badVAddr = machine->ReadRegister(BAD_VADDR_REG);
+    unsigned int numPage = badVAddr / PAGE_SIZE;
+}
+
 
 /// By default, only system calls have their own handler.  All other
 /// exception types are assigned the default handler.
@@ -464,7 +488,7 @@ SetExceptionHandlers()
 {
     machine->SetHandler(NO_EXCEPTION,            &DefaultHandler);
     machine->SetHandler(SYSCALL_EXCEPTION,       &SyscallHandler);
-    machine->SetHandler(PAGE_FAULT_EXCEPTION,    &DefaultHandler);
+    machine->SetHandler(PAGE_FAULT_EXCEPTION,    &PageFaultHandler);
     machine->SetHandler(READ_ONLY_EXCEPTION,     &DefaultHandler);
     machine->SetHandler(BUS_ERROR_EXCEPTION,     &DefaultHandler);
     machine->SetHandler(ADDRESS_ERROR_EXCEPTION, &DefaultHandler);

@@ -42,8 +42,13 @@ public:
     /// Initialize user-level CPU registers, before jumping to user code.
     void InitRegisters();
 
-    /// Save/restore address space-specific info on a context switch.
+    ///
+    void InvalidateTlb();
 
+    ///
+    TranslationEntry GetTranslationEntry(unsigned vAddr);
+    
+    /// Save/restore address space-specific info on a context switch.
     void SaveState();
     void RestoreState();
     bool IsInitialized();

@@ -25,7 +25,7 @@ const unsigned MEMORY_SIZE = NUM_PHYS_PAGES * PAGE_SIZE;
 /// Number of entries in the TLB, if one is present.
 ///
 /// If there is a TLB, it will be small compared to page tables.
-const unsigned TLB_SIZE = 4;
+const unsigned TLB_SIZE = 16;
 
 
 /// This class simulates an MMU (memory management unit) that can use either
@@ -46,6 +46,8 @@ public:
     ExceptionType WriteMem(unsigned addr, unsigned size, int value);
 
     void PrintTLB() const;
+
+    bool SetTlbPage(TranslationEntry pageTranslation);
 
     /// Data structures -- all of these are accessible to Nachos kernel code.
     /// “Public” for convenience.
@@ -83,6 +85,9 @@ public:
     unsigned pageTableSize;
 
 private:
+
+    ///
+    unsigned tlbPage;
 
     /// Retrieve a page entry either from a page table or the TLB.
     ExceptionType RetrievePageEntry(unsigned vpn,

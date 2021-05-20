@@ -147,6 +147,26 @@ AddressSpace::InitRegisters()
           numPages * PAGE_SIZE - 16);
 }
 
+///
+///
+///
+void
+AddressSpace::InvalidateTlb()
+{
+    MMU *mmu = machine->GetMMU();
+    for (unsigned i = 0; i < TLB_SIZE; i++) 
+        mmu->tlb[i].valid = false;
+}
+
+///
+///
+///
+TranslationEntry 
+AddressSpace::GetTranslationEntry(unsigned vAddr)
+{
+    return pageTable[vAddr];
+}
+
 /// On a context switch, save any machine state, specific to this address
 /// space, that needs saving.
 ///
@@ -162,8 +182,13 @@ AddressSpace::SaveState()
 void
 AddressSpace::RestoreState()
 {
-    machine->GetMMU()->pageTable     = pageTable;
-    machine->GetMMU()->pageTableSize = numPages;
+    //machine->GetMMU()->pageTable     = pageTable;
+    //machine->GetMMU()->pageTableSize = numPages;
+    InvalidateTlb();
+    //invalidar todas las entradas de la tlb para el proceso
+    //para que cuando quiera leer surga una exepcion y ahi aplicar el mecanismo de buscar
+    // en la tlb como es un miss levanta una exep y de ahi hay que rellenar la tlb yendo
+    // a buscar la traduccion a la tabla de paginacion
 }
 
 bool
