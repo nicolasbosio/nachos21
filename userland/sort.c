@@ -7,7 +7,7 @@
 
 
 #include "syscall.h"
-
+#include "lib.h"
 
 #define DIM  1024
 
@@ -36,5 +36,6 @@ main(void)
     }
 
     // And then we're done -- should be 0!
+    strput("FIN SORT");
     return A[0];
 }

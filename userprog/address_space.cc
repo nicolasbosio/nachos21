@@ -7,11 +7,9 @@
 
 
 #include "address_space.hh"
-#include "executable.hh"
 #include "threads/system.hh"
-
+#include "executable.hh"
 #include <string.h>
-
 
 /// First, set up the translation from program memory to physical memory.
 /// For now, this is really simple (1:1), since we are only uniprogramming,
@@ -20,41 +18,46 @@ AddressSpace::AddressSpace(OpenFile *executable_file)
 {
     initialized = false;
     if(executable_file == nullptr) {
-        DEBUG('a', "No executable to run\n");
+        DEBUG('p', "No executable to run\n");
         return;
     }
 
     Executable exe (executable_file);
     if (!exe.CheckMagic()) {
-        DEBUG('a', "Not Nachos executable file\n");
+        DEBUG('p', "Not Nachos executable file\n");
         return;
     }
 
     // How big is address space?
     unsigned size = exe.GetSize() + USER_STACK_SIZE;
     // We need to increase the size to leave room for the stack.
-    DEBUG('a', "Cantidad de paginas libres %d\n", bitmap->CountClear());
+    DEBUG('p', "Cantidad de paginas libres %d\n", bitmap->CountClear());
     numPages = DivRoundUp(size, PAGE_SIZE);
-    DEBUG('a', "Cantidad de paginas asignadas al proceso %d\n", numPages);
+    DEBUG('p', "Cantidad de paginas requeridas por el proceso %d\n", numPages);
     
     size = numPages * PAGE_SIZE;
 
     // Check we are not trying to run anything too big -- at least until we
     // have virtual memory.
     if(numPages > bitmap->CountClear()) {
-        DEBUG('a', "La cantidad de paginas requeridas no alcanza\n");
+        DEBUG('p', "La cantidad de paginas requeridas no alcanza\n");
         return;
     }
 
-    DEBUG('a', "Initializing address space, num pages %u, size %u\n",
+    DEBUG('p', "Initializing address space, num pages %u, size %u\n",
           numPages, size);
 
     // First, set up the translation.
     pageTable = new TranslationEntry[numPages];
     for (unsigned i = 0; i < numPages; i++) {
         pageTable[i].virtualPage  = i;
+#ifdef DEMAND_LOADING
+        pageTable[i].physicalPage = 0;
+        pageTable[i].valid = false;
+#else
         pageTable[i].physicalPage = bitmap->Find();
         pageTable[i].valid        = true;
+#endif
         pageTable[i].use          = false;
         pageTable[i].dirty        = false;
         pageTable[i].readOnly     = false;
@@ -62,6 +65,13 @@ AddressSpace::AddressSpace(OpenFile *executable_file)
           // set its pages to be read-only.
     }
 
+#ifdef DEMAND_LOADING
+    codeSize = exe.GetCodeSize();
+    initDataSize = exe.GetInitDataSize();
+    executableFile = executable_file;
+    DEBUG('p', "Initializing Demand Loading Address space for thread: %s\n", currentThread->GetName());
+    DEBUG('p', "Inicializacion de demand loading correcta\n");
+#else
     char *mainMemory = machine->GetMMU()->mainMemory;
 
     // Zero out the entire address space, to zero the unitialized data
@@ -69,20 +79,20 @@ AddressSpace::AddressSpace(OpenFile *executable_file)
     for(unsigned i = 0; i < numPages ; i++)
         memset(&mainMemory[pageTable[i].physicalPage * PAGE_SIZE], 0, PAGE_SIZE);
 
-
     // Then, copy in the code and data segments into memory.
     uint32_t codeSize = exe.GetCodeSize();
     uint32_t initDataSize = exe.GetInitDataSize();
+
     if(codeSize > 0)
     {
         uint32_t virtualAddr = exe.GetCodeAddr();
-        DEBUG('a', "Initializing code segment, at 0x%X, size %u\n", virtualAddr, codeSize);
+        DEBUG('p', "Initializing code segment, at 0x%X, size %u\n", virtualAddr, codeSize);
         for (uint32_t bytesRead = 0; bytesRead < codeSize; bytesRead += PAGE_SIZE)
         {
             uint32_t page = (virtualAddr + bytesRead) / PAGE_SIZE;
             uint32_t offset = (virtualAddr + bytesRead) % PAGE_SIZE;
             uint32_t readSize = min(codeSize - bytesRead, PAGE_SIZE);
-            // pageTable[page].readOnly = true;
+            pageTable[page].readOnly = true;
             exe.ReadCodeBlock(&mainMemory[(pageTable[page].physicalPage * PAGE_SIZE) + offset], readSize, bytesRead);
         }
     }
@@ -90,7 +100,7 @@ AddressSpace::AddressSpace(OpenFile *executable_file)
     if(initDataSize > 0)
     {
         uint32_t virtualAddr = exe.GetInitDataAddr();
-        DEBUG('a', "Initializing data segment, at 0x%X, size %u\n", virtualAddr, initDataSize);
+        DEBUG('p', "Initializing data segment, at 0x%X, size %u\n", virtualAddr, initDataSize);
         //Complete the unfilled part of the last page of code with initData.
         uint32_t page = DivRoundDown(codeSize, PAGE_SIZE);
         uint32_t offset = codeSize % PAGE_SIZE;
@@ -105,8 +115,9 @@ AddressSpace::AddressSpace(OpenFile *executable_file)
             exe.ReadDataBlock(&mainMemory[(pageTable[page].physicalPage * PAGE_SIZE) + offset], readSize, bytesRead);
         }
     }
+    DEBUG('p', "Inicializacion de address space correcta\n");
+#endif
     initialized = true;
-    DEBUG('a', "Inicializacion de address space correcta\n");
 }
 
 /// Deallocate an address space.
@@ -114,10 +125,77 @@ AddressSpace::AddressSpace(OpenFile *executable_file)
 /// Nothing for now!
 AddressSpace::~AddressSpace()
 {
-    for(unsigned i = 0 ; i < numPages ; i++)
-        bitmap->Clear(pageTable[i].physicalPage);
+    for(unsigned i = 0 ; i < numPages ; i++) {
+        if(pageTable[i].valid) {
+            DEBUG('p', "Limpiando el marco fisico n° %d -- Valid? %d\n", pageTable[i].physicalPage, pageTable[i].valid);
+            bitmap->Clear(pageTable[i].physicalPage);
+        }
+    }
     delete [] pageTable;
+#ifdef DEMAND_LOADING
+    delete executableFile;
+#endif
 }
+
+
+#ifdef DEMAND_LOADING
+///
+TranslationEntry
+AddressSpace::LoadPage(unsigned vAddr)
+{
+    Executable exe (executableFile);
+    unsigned pageNum = vAddr / PAGE_SIZE;
+    vAddr = pageNum * PAGE_SIZE;
+    DEBUG('p', "'Load Page Required' -> vPage: %d -- vAddr: %d\n",
+          pageNum, vAddr);
+    bool init = false;
+    char *mainMemory = machine->GetMMU()->mainMemory;
+    int physPage = bitmap->Find();
+
+    ASSERT(physPage != -1);
+    
+    pageTable[pageNum].virtualPage = pageNum;
+    pageTable[pageNum].physicalPage = physPage;
+    pageTable[pageNum].valid = true;
+    
+    if (vAddr >= (codeSize + initDataSize))
+    {
+        DEBUG('p', "'Load Stack block' -> vPage: %d -- phyPage %d\n", 
+            pageTable[pageNum].virtualPage, pageTable[pageNum].physicalPage);
+        memset(&mainMemory[pageTable[pageNum].physicalPage * PAGE_SIZE], 0, PAGE_SIZE);
+        //memset(&mainMemory[pageTable[i].physicalPage * PAGE_SIZE], 0, PAGE_SIZE);
+        init = true;
+    }
+    else if (vAddr < codeSize)
+    {
+        uint32_t readSize = min(codeSize - vAddr, PAGE_SIZE);
+        uint32_t offset = pageNum * PAGE_SIZE;
+
+        DEBUG('p', "'Load Code block' -> vPage: %d -- phyPage %d -- readSize %d -- vAddr %d\n", 
+            pageTable[pageNum].virtualPage, pageTable[pageNum].physicalPage, readSize, vAddr);
+
+        pageTable[pageNum].readOnly = true;
+        exe.ReadCodeBlock(&mainMemory[pageTable[pageNum].physicalPage * PAGE_SIZE], PAGE_SIZE, offset);
+        //exe.ReadCodeBlock(&mainMemory[(pageTable[page].physicalPage * PAGE_SIZE) + offset], readSize, bytesRead);
+        init = true;
+    }
+    else
+    {
+        uint32_t readSize = min(initDataSize - (vAddr - codeSize), PAGE_SIZE);
+        uint32_t offset = pageNum * PAGE_SIZE;
+
+        DEBUG('p', "'Load initData block' -> vPage: %d -- phyPage %d -- readSize %d -- vAddr %d\n",
+              pageTable[pageNum].virtualPage, pageTable[pageNum].physicalPage, PAGE_SIZE, vAddr);
+
+        exe.ReadDataBlock(&mainMemory[pageTable[pageNum].physicalPage * PAGE_SIZE], readSize, (offset - codeSize));
+        //exe.ReadDataBlock(&mainMemory[(pageTable[page].physicalPage * PAGE_SIZE) + offset], readSize, bytesRead);
+        init = true;
+    }
+    ASSERT(init);
+
+    return pageTable[pageNum];
+}
+#endif
 
 /// Set the initial values for the user-level register set.
 ///
@@ -143,7 +221,7 @@ AddressSpace::InitRegisters()
     // allocated the stack; but subtract off a bit, to make sure we do not
     // accidentally reference off the end!
     machine->WriteRegister(STACK_REG, numPages * PAGE_SIZE - 16);
-    DEBUG('a', "Initializing stack register to %u\n",
+    DEBUG('p', "Initializing stack register to %u\n",
           numPages * PAGE_SIZE - 16);
 }
 
@@ -162,9 +240,9 @@ AddressSpace::InvalidateTlb()
 ///
 ///
 TranslationEntry 
-AddressSpace::GetTranslationEntry(unsigned vAddr)
+AddressSpace::GetTranslationEntry(unsigned vPage)
 {
-    return pageTable[vAddr];
+    return pageTable[vPage];
 }
 
 /// On a context switch, save any machine state, specific to this address
@@ -173,7 +251,8 @@ AddressSpace::GetTranslationEntry(unsigned vAddr)
 /// For now, nothing!
 void
 AddressSpace::SaveState()
-{}
+{
+}
 
 /// On a context switch, restore the machine state so that this address space
 /// can run.
@@ -182,13 +261,12 @@ AddressSpace::SaveState()
 void
 AddressSpace::RestoreState()
 {
-    //machine->GetMMU()->pageTable     = pageTable;
-    //machine->GetMMU()->pageTableSize = numPages;
+#ifdef USE_TLB
     InvalidateTlb();
-    //invalidar todas las entradas de la tlb para el proceso
-    //para que cuando quiera leer surga una exepcion y ahi aplicar el mecanismo de buscar
-    // en la tlb como es un miss levanta una exep y de ahi hay que rellenar la tlb yendo
-    // a buscar la traduccion a la tabla de paginacion
+#else
+    machine->GetMMU()->pageTable = pageTable;
+    machine->GetMMU()->pageTableSize = numPages;
+#endif
 }
 
 bool

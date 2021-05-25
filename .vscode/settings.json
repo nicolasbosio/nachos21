@@ -8,6 +8,7 @@
         "ostream": "c",
         "sstream": "c",
         "optional": "cpp",
-        "type_traits": "cpp"
+        "type_traits": "cpp",
+        "random": "cpp"
     }
 }

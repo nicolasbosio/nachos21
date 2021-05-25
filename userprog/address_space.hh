@@ -17,7 +17,6 @@
 #include "filesys/file_system.hh"
 #include "machine/translation_entry.hh"
 
-
 const unsigned USER_STACK_SIZE = 1024;  ///< Increase this as necessary!
 
 
@@ -39,6 +38,11 @@ public:
     /// De-allocate an address space.
     ~AddressSpace();
 
+#ifdef DEMAND_LOADING
+    ///
+    TranslationEntry LoadPage(unsigned vAddr);
+#endif
+
     /// Initialize user-level CPU registers, before jumping to user code.
     void InitRegisters();
 
@@ -46,7 +50,7 @@ public:
     void InvalidateTlb();
 
     ///
-    TranslationEntry GetTranslationEntry(unsigned vAddr);
+    TranslationEntry GetTranslationEntry(unsigned vPage);
     
     /// Save/restore address space-specific info on a context switch.
     void SaveState();
@@ -63,6 +67,12 @@ private:
 
     ///
     bool initialized;
+
+#ifdef DEMAND_LOADING
+    unsigned int codeSize;
+    unsigned int initDataSize;
+    OpenFile *executableFile;
+#endif
 
 };
 

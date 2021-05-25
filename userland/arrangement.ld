@@ -2,12 +2,12 @@ OUTPUT_FORMAT("ecoff-littlemips")
 ENTRY(__start)
 SECTIONS
 {
-    .text 0 : {
+    .text 0 : ALIGN(128) {
         *(.init)
         *(.text)
         *(.fini)
     }
-    .data . : {
+    .data . : ALIGN(128) {
         /* `coff2noff` cannot output more than one initialized data section,
            so put the contents of all of them inside `.data`. */
         *(.rdata)

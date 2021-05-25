@@ -81,7 +81,7 @@ Thread::~Thread()
     }
 #ifdef USER_PROGRAM
     delete this->space;
-    delete fileTable;
+    delete this->fileTable;
 #endif
 }
 
@@ -233,6 +233,7 @@ Thread::Yield()
 
     Thread *nextThread = scheduler->FindNextToRun();
     if (nextThread != nullptr) {
+        DEBUG('t', "Yield success \"%s\"\n", nextThread->GetName());
         scheduler->ReadyToRun(this);
         scheduler->Run(nextThread);
     }
@@ -269,8 +270,8 @@ Thread::Sleep()
     while ((nextThread = scheduler->FindNextToRun()) == nullptr) {
         interrupt->Idle();  // No one to run, wait for an interrupt.
     }
-
-    scheduler->Run(nextThread);  // Returns when we have been signalled.
+    if(nextThread != currentThread)
+        scheduler->Run(nextThread);  // Returns when we have been signalled.
 }
 
 ///Descripcion del join
@@ -281,6 +282,7 @@ Thread::Join()
         currentThread->Yield();
 
     int retValue = returnStatus;
+    DEBUG('t', "JOIN: called for thread -> %s -- currentThread -> %s\n", this->GetName(), currentThread->GetName());
     delete this;
     return retValue;
 }

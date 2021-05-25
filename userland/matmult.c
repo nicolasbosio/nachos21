@@ -7,6 +7,7 @@
 
 
 #include "syscall.h"
+#include "lib.h"
 
 
 /// Sum total of the arrays does not fit in physical memory.
@@ -40,5 +41,6 @@ main(void)
     }
 
     // And then we are done.
+    strput("FIN MATMULT");
     return C[DIM - 1][DIM - 1];
 }

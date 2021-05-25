@@ -46,6 +46,13 @@ public:
 
     /// Number of virtual memory page faults.
     unsigned long numPageFaults;
+#ifdef USE_TLB
+    /// Number of TLB misses.
+    unsigned long numMissTlb;
+
+    /// Number of TLB hits.
+    unsigned long numHitTlb;
+#endif
 
     /// Number of packets sent over the network.
     unsigned long numPacketsSent;

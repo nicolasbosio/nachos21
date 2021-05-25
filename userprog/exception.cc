@@ -31,6 +31,7 @@
 #include "address_space.hh"
 #include "args.hh"
 #include <stdio.h>
+#include <string.h>
 
 static void
 IncrementPC()
@@ -48,6 +49,7 @@ void
 newThread(void *arg)
 {
     char** argv = (char**) arg;
+
     currentThread->space->InitRegisters(); // Set the initial register values.
     currentThread->space->RestoreState();  // Load page table register.
     int sp = machine->ReadRegister(STACK_REG);
@@ -63,23 +65,6 @@ newThread(void *arg)
         machine->WriteRegister(STACK_REG, sp - 16);
     }
     machine->Run(); // Jump to the user progam.
-}
-
-/// Do some default behavior for an unexpected exception.
-///
-/// NOTE: this function is meant specifically for unexpected exceptions.  If
-/// you implement a new behavior for some exception, do not extend this
-/// function: assign a new handler instead.
-///
-/// * `et` is the kind of exception.  The list of possible exceptions is in
-///   `machine/exception_type.hh`.
-static void
-DefaultHandler(ExceptionType et)
-{
-    int exceptionArg = machine->ReadRegister(2);
-    fprintf(stderr, "Unexpected user mode exception: %s, arg %d.\n",
-            ExceptionTypeToString(et), exceptionArg);
-    ASSERT(false);
 }
 
 /// Run a user program.
@@ -99,7 +84,9 @@ StartProcess(const char *filename)
     AddressSpace *space = new AddressSpace(executable);
     currentThread->space = space;
 
+#ifndef DEMAND_LOADING
     delete executable;
+#endif
 
     space->InitRegisters();  // Set the initial register values.
     space->RestoreState();   // Load page table register.
@@ -140,7 +127,7 @@ SyscallHandler(ExceptionType _et)
             int filenameAddr = machine->ReadRegister(4);
             if (filenameAddr == 0) {
                 machine->WriteRegister(2, -1);
-                DEBUG('e', "Error: address to filename string is null.\n");
+                DEBUG('e', "´Create´ Error: address to filename string is null.\n");
                 break;
             }
 
@@ -148,7 +135,7 @@ SyscallHandler(ExceptionType _et)
             if (!ReadStringFromUser(filenameAddr,
                                     filename, sizeof filename)) {
                 machine->WriteRegister(2, -1);
-                DEBUG('e', "Error: filename string too long (maximum is %u bytes).\n",
+                DEBUG('e', "´Create´ Error: filename string too long (maximum is %u bytes).\n",
                       FILE_NAME_MAX_LEN);
                 break;
             }
@@ -156,7 +143,7 @@ SyscallHandler(ExceptionType _et)
             DEBUG('e', "`Create` requested for file `%s`.\n", filename);
             if(!fileSystem->Create(filename, 100)){
                 machine->WriteRegister(2, -1);
-                DEBUG('e', "Error: Failed to create the file: %s\n", filename);
+                DEBUG('e', "´Create´ Error: Failed to create the file: %s\n", filename);
                 break;
             }
 
@@ -173,7 +160,7 @@ SyscallHandler(ExceptionType _et)
             if (filenameAddr == 0)
             {
                 machine->WriteRegister(2, -1);
-                DEBUG('e', "Error: address to filename string is null.\n");
+                DEBUG('e', "´Exec´ Error: address to filename string is null.\n");
                 break;
             }
 
@@ -247,9 +234,9 @@ SyscallHandler(ExceptionType _et)
             child->Fork(newThread, args);
 
             DEBUG('e', "Success in Exec for %s\n", filename);
-
+#ifndef DEMAND_LOADING
             delete file;
-
+#endif
             machine->WriteRegister(2, i);
             break;
         }
@@ -300,6 +287,9 @@ SyscallHandler(ExceptionType _et)
         }
 
         case SC_EXIT: {
+            Thread *any = scheduler->FindNextToRun();
+            if(any == nullptr)
+                interrupt->Halt();
             currentThread->Finish(machine->ReadRegister(4));
             break;
         }
@@ -458,26 +448,54 @@ SyscallHandler(ExceptionType _et)
 
 static void
 PageFaultHandler(ExceptionType _et) 
-{    
-    unsigned badVAddr = machine->ReadRegister(BAD_VADDR_REG);
-    unsigned int numPage = badVAddr / PAGE_SIZE;
-    DEBUG('e', "'Mem handler exeption' Virtual addres not found in tlb: %d ; Page: %d\n", badVAddr, numPage);
-    // con la direccion virtual que nos llega tenemos que ir a la pagetable de el proceso
-    TranslationEntry pageTranslation = currentThread->space->GetTranslationEntry(numPage);
-
-    MMU *mmu = machine->GetMMU();
-    /// que hacer si falla el setTlb
-    mmu->SetTlbPage(pageTranslation);
-    //DEBUG('e', " ", );
-    //mmu->PrintTLB();
-    //DECREMENTAR PC??
-}
-
-static void
-ReadOnlyExeption(ExceptionType _et)
 {
     unsigned badVAddr = machine->ReadRegister(BAD_VADDR_REG);
     unsigned int numPage = badVAddr / PAGE_SIZE;
+    DEBUG('e', "'Page Fault exception' Virtual addres: %d -- Page: %d -- Current thread: %s\n"
+            , badVAddr, numPage, currentThread->GetName());
+    // con la direccion virtual que nos llega tenemos que ir a la pagetable de el proceso
+    TranslationEntry pageTranslation = currentThread->space->GetTranslationEntry(numPage);
+
+#ifdef DEMAND_LOADING
+    if(!pageTranslation.valid) { ///DEMAND LOADING
+        DEBUG('e', "'Demand loading required' Virtual addres: %d -- Page: %d\n", badVAddr, numPage);
+        pageTranslation = currentThread->space->LoadPage(badVAddr);
+    }
+else
+        DEBUG('e', "Page translation valid! found for page %d in pageTable\n",numPage);
+#endif
+
+    MMU *mmu = machine->GetMMU();
+    /// que hacer si falla el setTlb??
+    mmu->SetTlbPage(pageTranslation);
+}
+
+static void
+ReadOnlyExceptionHandler(ExceptionType _et)
+{
+    unsigned badVAddr = machine->ReadRegister(BAD_VADDR_REG);
+    unsigned int numPage = badVAddr / PAGE_SIZE;
+    DEBUG('e', "'Page 'RO' exception' Virtual addres: %d -- Page: %d\n", badVAddr, numPage);
+    /// TODO:
+    // que hacer???
+    //
+}
+
+/// Do some default behavior for an unexpected exception.
+///
+/// NOTE: this function is meant specifically for unexpected exceptions.  If
+/// you implement a new behavior for some exception, do not extend this
+/// function: assign a new handler instead.
+///
+/// * `et` is the kind of exception.  The list of possible exceptions is in
+///   `machine/exception_type.hh`.
+static void
+DefaultHandler(ExceptionType et)
+{
+    int exceptionArg = machine->ReadRegister(2);
+    fprintf(stderr, "Unexpected user mode exception: %s, arg %d.\n",
+            ExceptionTypeToString(et), exceptionArg);
+    ASSERT(false);
 }
 
 
@@ -489,7 +507,7 @@ SetExceptionHandlers()
     machine->SetHandler(NO_EXCEPTION,            &DefaultHandler);
     machine->SetHandler(SYSCALL_EXCEPTION,       &SyscallHandler);
     machine->SetHandler(PAGE_FAULT_EXCEPTION,    &PageFaultHandler);
-    machine->SetHandler(READ_ONLY_EXCEPTION,     &DefaultHandler);
+    machine->SetHandler(READ_ONLY_EXCEPTION,     &ReadOnlyExceptionHandler);
     machine->SetHandler(BUS_ERROR_EXCEPTION,     &DefaultHandler);
     machine->SetHandler(ADDRESS_ERROR_EXCEPTION, &DefaultHandler);
     machine->SetHandler(OVERFLOW_EXCEPTION,      &DefaultHandler);

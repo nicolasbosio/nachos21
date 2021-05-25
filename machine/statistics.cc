@@ -10,6 +10,8 @@
 
 #include "statistics.hh"
 #include "lib/utility.hh"
+#include "mmu.hh"
+#include "threads/system.hh"
 
 #include <stdio.h>
 
@@ -21,6 +23,9 @@ Statistics::Statistics()
     numDiskReads = numDiskWrites = 0;
     numConsoleCharsRead = numConsoleCharsWritten = 0;
     numPageFaults = numPacketsSent = numPacketsRecvd = 0;
+#ifdef USE_TLB
+    numHitTlb = numMissTlb = 0;
+#endif
 #ifdef DFS_TICKS_FIX
     tickResets = 0;
 #endif
@@ -46,4 +51,10 @@ Statistics::Print()
     printf("Paging: faults %lu\n", numPageFaults);
     printf("Network I/O: packets received %lu, sent %lu\n",
            numPacketsRecvd, numPacketsSent);
+#ifdef USE_TLB
+    printf("Tlb Size: %d\nMem total Page: %d\n", TLB_SIZE, NUM_PHYS_PAGES);
+    float ratio = (1 - ((float)numMissTlb/(float)(numHitTlb - numMissTlb))) * 100;
+    printf("Tlb Misses: %ld\nTlb Hits: %ld\nRatio Hits TLB: %.5f %%\n",
+            numMissTlb, (numHitTlb - numMissTlb), ratio);
+#endif
 }

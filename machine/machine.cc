@@ -97,8 +97,7 @@ Machine::ReadMem(unsigned addr, unsigned size, int *value)
     ExceptionType e = mmu.ReadMem(addr, size, value);
     if (e != NO_EXCEPTION) {
         RaiseException(e, addr);
-        e = mmu.ReadMem(addr, size, value);
-        return e == NO_EXCEPTION;
+        return false;
     }
     return true;
 }
@@ -109,8 +108,7 @@ Machine::WriteMem(unsigned addr, unsigned size, int value)
     ExceptionType e = mmu.WriteMem(addr, size, value);
     if (e != NO_EXCEPTION) {
         RaiseException(e, addr);
-        e = mmu.WriteMem(addr, size, value);
-        return e == NO_EXCEPTION;
+        return false;
     }
     return true;
 }

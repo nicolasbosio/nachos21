@@ -30,6 +30,7 @@
 
 #include "mmu.hh"
 #include "endianness.hh"
+#include "threads/system.hh"
 
 #include <stdio.h>
 
@@ -69,7 +70,7 @@ MMU::PrintTLB() const
     printf("TLB content (%u entries):\n", TLB_SIZE);
     for (unsigned i = 0; i < TLB_SIZE; i++) {
         const TranslationEntry *e = &tlb[i];
-        printf("(%u) valid: %d, virt: %d, frame: %d, flags: %s%s%s\n",
+        printf("\t(%u) valid: %d, virt: %d, frame: %d, flags: %s%s%s\n",
                i, e->valid, e->virtualPage, e->physicalPage,
                (e->readOnly) ? "readonly " : "",
                (e->use)      ? "use " : "",
@@ -83,16 +84,21 @@ MMU::PrintTLB() const
 bool 
 MMU::SetTlbPage(TranslationEntry pageTranslation)
 {
+#ifdef USE_TLB
     /* COMPLETAR CHEQUEOS
     if(pageTranslation == nullptr) {
         DEBUG('a', "");
         return false;
     }
     */
-    DEBUG('a', "Set Tlb in page: %d\n", tlbPage);
+    DEBUG('p', "Set Tlb in page: %d\n", tlbPage);
     tlb[tlbPage] = pageTranslation;
     tlbPage = (tlbPage + 1) % TLB_SIZE;
     return true;
+#else
+    DEBUG('p', "TLB not present in the machine.\n");
+    return false;
+#endif
 }
 
 /// Read `size` (1, 2, or 4) bytes of virtual memory at `addr` into
@@ -215,12 +221,19 @@ MMU::RetrievePageEntry(unsigned vpn, TranslationEntry **entry) const
             TranslationEntry *e = &tlb[i];
             if (e->valid && e->virtualPage == vpn) {
                 *entry = e;  // FOUND!
+#ifdef USE_TLB
+                stats->numHitTlb++;
+#endif
                 return NO_EXCEPTION;
             }
         }
 
         // Not found.
         DEBUG_CONT('a', "no valid TLB entry found for this virtual page!\n");
+#ifdef USE_TLB
+        stats->numMissTlb++;
+#endif
+        stats->numPageFaults++;
         return PAGE_FAULT_EXCEPTION;  // Really, this is a TLB fault, the
                                       // page may be in memory, but not in
                                       // the TLB.
