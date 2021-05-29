@@ -115,7 +115,7 @@ AddressSpace::AddressSpace(OpenFile *executable_file)
 AddressSpace::~AddressSpace()
 {
     for(unsigned i = 0 ; i < numPages ; i++)
-        bitmap->Clear(i);
+        bitmap->Clear(pageTable[i].physicalPage);
     delete [] pageTable;
 }
 

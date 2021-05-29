@@ -76,7 +76,11 @@ Thread::~Thread()
         SystemDep::DeallocBoundedArray((char *) stack,
                                        STACK_SIZE * sizeof *stack);
     }
+    if(scheduler->IsZombie(this)) {
+        scheduler->DeleteZombie(this);
+    }
 #ifdef USER_PROGRAM
+    delete this->space;
     delete fileTable;
 #endif
 }
@@ -273,12 +277,12 @@ Thread::Sleep()
 int
 Thread::Join()
 {
-    while(!scheduler->IsZombie(this)) {
+    while(!scheduler->IsZombie(this))
         currentThread->Yield();
-    }
-    int ret = returnStatus;
+
+    int retValue = returnStatus;
     delete this;
-    return ret;
+    return retValue;
 }
 
 

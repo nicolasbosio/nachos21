@@ -1,6 +1,6 @@
 #include "syscall.h"
+#include "../userprog/syscall.h" // Include fix IntelliSense
 #include "lib.h"
-
 int
 main(void)
 {

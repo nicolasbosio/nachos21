@@ -32,13 +32,10 @@
 #include "args.hh"
 #include <stdio.h>
 
-#define MAX_SPACE 10
-
 static void
 IncrementPC()
 {
     unsigned pc;
-
     pc = machine->ReadRegister(PC_REG);
     machine->WriteRegister(PREV_PC_REG, pc);
     pc = machine->ReadRegister(NEXT_PC_REG);
@@ -50,7 +47,6 @@ IncrementPC()
 void newThread(void *arg)
 {
     char** argv = (char**) arg;
-   
     currentThread->space->InitRegisters(); // Set the initial register values.
     currentThread->space->RestoreState();  // Load page table register.
     int sp = machine->ReadRegister(STACK_REG);
@@ -80,7 +76,6 @@ static void
 DefaultHandler(ExceptionType et)
 {
     int exceptionArg = machine->ReadRegister(2);
-
     fprintf(stderr, "Unexpected user mode exception: %s, arg %d.\n",
             ExceptionTypeToString(et), exceptionArg);
     ASSERT(false);
@@ -157,7 +152,6 @@ SyscallHandler(ExceptionType _et)
                 break;
             }
             DEBUG('e', "`Create` requested for file `%s`.\n", filename);
-
             if(!fileSystem->Create(filename, 100)){
                 machine->WriteRegister(2, -1);
                 DEBUG('e', "Error: Failed to create the file: %s\n", filename);
@@ -170,8 +164,6 @@ SyscallHandler(ExceptionType _et)
 
         case SC_EXEC: {
             DEBUG('e', "Request for Starting process\n");
-            //VER DE REEMPLAZAR CON UNA LLAMADA A OPEN
-            //////////////////////////////////////////////////////////////////////
             int filenameAddr = machine->ReadRegister(4);
             int joinable = machine->ReadRegister(5);
             int argvAddr = machine->ReadRegister(6);
@@ -197,15 +189,23 @@ SyscallHandler(ExceptionType _et)
             DEBUG('e', "'Exec' Request for file `%s`.\n", filename);
             char *threadName = new char[FILE_NAME_MAX_LEN + 1];
             sprintf(threadName, "%s", filename);
-            Thread *child = new Thread(threadName, joinable, 5);
+            Thread *child = new Thread(threadName, joinable, 2);
 
             DEBUG('e', "`Open` requested for filename %s.\n", filename);
 
             OpenFile *file = fileSystem->Open(filename);
-            //////////////////////////////////////////////////////////////////////
+
+            if(file == nullptr)
+            {
+                machine->WriteRegister(2, -1);
+                DEBUG('e', "File not found\n");
+                break;
+            }
 
             AddressSpace *newSpace = new AddressSpace(file);
-            if(!newSpace->IsInitialized()) {
+            if(!newSpace->IsInitialized())
+            {
+                machine->WriteRegister(2, -1);
                 DEBUG('e', "Error al inicializar el address space\n");
                 break;
             }
@@ -216,14 +216,22 @@ SyscallHandler(ExceptionType _et)
             {
                 for (; i < MAX_SPACE; i++)
                 {
-                    if (tableThread[i].space == NULL)
+                    if (tableThread[i].space == nullptr)
                     {
                         tableThread[i].space = (SpaceId *)newSpace;
                         tableThread[i].thread = child;
+                        DEBUG('e', "Success in tableThread for %s\n", filename);
                         break;
                     }
                 }
-                DEBUG('e', "Success in tableThread for %s\n", filename);
+                
+                if(tableThread[i].space != (SpaceId*)newSpace)
+                {
+                    delete newSpace;
+                    delete child; 
+                    machine->WriteRegister(2, -1);
+                    break;                   
+                }
             }
             else
             {
@@ -232,7 +240,9 @@ SyscallHandler(ExceptionType _et)
 
             char **args = nullptr;
             if (argvAddr != 0)
+            {
                 args = SaveArgs(argvAddr);
+            }
             child->Fork(newThread, args);
 
             DEBUG('e', "Success in Exec for %s\n", filename);
@@ -245,13 +255,13 @@ SyscallHandler(ExceptionType _et)
 
         case SC_JOIN: {
             int index = machine->ReadRegister(4);
-            if(index < MAX_SPACE && index > 0) {
+            if(index < MAX_SPACE && index >= 0) {
                 DEBUG('e', "´Join´ called for space %p\n", tableThread[index].space);
                 Thread *thread = tableThread[index].thread;
                 DEBUG('e', "´Join Tread´ called for thread %s\n", thread->GetName());
                 int ret = thread->Join();
                 machine->WriteRegister(2, ret);
-                //delete tableThread[index].space; //DUDA EXISTENCIAL
+                tableThread[index].space = nullptr;
             }
             else {
                 DEBUG('e', "´Join process´ called for a process no joineable\n");
@@ -289,8 +299,6 @@ SyscallHandler(ExceptionType _et)
         }
 
         case SC_EXIT: {
-            //HALT if there is nothing left to run
-            //Revisar esto
             currentThread->Finish(machine->ReadRegister(4));
             break;
         }
@@ -316,6 +324,14 @@ SyscallHandler(ExceptionType _et)
             DEBUG('e', "`Open` EXCEPTION requested for filename %s.\n", filename);
 
             OpenFile *file = fileSystem->Open(filename);
+
+            if (file == nullptr)
+            {
+                machine->WriteRegister(2, -1);
+                DEBUG('e', "File not found\n");
+                break;
+            }
+
             OpenFileId fid = currentThread->AddOpenFile(file);
 
             if(fid == -1)
@@ -362,9 +378,11 @@ SyscallHandler(ExceptionType _et)
             DEBUG('e', "`Read` requested for id %u.\n", fid);
 
             char dest[size];
+            int bytesRead = 0;
             if (fid == CONSOLE_INPUT) {
                 synchConsole->Read(dest, size);
                 WriteStringToUser(dest, bufferDest);
+                bytesRead = size;
             }
             else {
                 OpenFile* file = currentThread->GetOpenFileByFileId(fid);
@@ -374,11 +392,13 @@ SyscallHandler(ExceptionType _et)
                     machine->WriteRegister(2, -1);
                     break;
                 }
-
-                file->Read(dest, (unsigned)size);
-                WriteBufferToUser(dest, bufferDest, (unsigned)size);
+                bytesRead = file->Read(dest, (unsigned)size);
+                if(bytesRead > 0)
+                {
+                    WriteBufferToUser(dest, bufferDest, bytesRead);
+                }
             }
-            machine->WriteRegister(2, 1);
+            machine->WriteRegister(2, bytesRead);
             break;
         }
 

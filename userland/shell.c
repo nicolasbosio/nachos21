@@ -1,4 +1,5 @@
 #include "syscall.h"
+#include "../userprog/syscall.h" // Include fix IntelliSense
 #include "lib.h"
 
 
@@ -117,22 +118,21 @@ main(void)
         // are given in the system call or not.
         
         SpaceId newProc;
+        if(strcmp(ptr, ":q"))
+        {
+            Halt();
+        }
+
         if (argv[0] == NULL)
-        {
             newProc = Exec(ptr, joinable, NULL);
-        }
         else
-        {
             newProc = Exec(ptr, joinable, argv);
-        }
 
         // TODO: check for errors when calling `Exec`; this depends on how
         //       errors are reported.
 
         if(joinable)
-        {
             Join(newProc);
-        }
 
         // TODO: is it necessary to check for errors after `Join` too, or
         //       can you be sure that, with the implementation of the system

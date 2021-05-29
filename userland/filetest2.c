@@ -11,12 +11,17 @@
 
 #include "syscall.h"
 #include "../userprog/syscall.h" // Include fix IntelliSense
-
+#include "lib.h"
 
 int
-main(void)
+main(int argc, char **argv)
 {
-    Halt();
-    // Not reached.
-    return -1;
+    if (argc > 0) {
+        strput("Hello filetest2..");
+    }
+    Create("test2.txt");
+    OpenFileId o = Open("test2.txt");
+    Write(argv[0],strlen(argv[0]),o);
+    Close(o);
 }
+

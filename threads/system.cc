@@ -234,8 +234,8 @@ Initialize(int argc, char **argv)
     machine = new Machine(d);  // This must come first.
     synchConsole = new SynchConsole(nullptr,nullptr);
     bitmap = new Bitmap(NUM_PHYS_PAGES);
-    tableThread = static_cast<ListThreadSpace>(malloc(sizeof(ListThreadSpace) * 10));
-    for (int i = 0 ; i < 10 ; i++) {
+    tableThread = static_cast<ListThreadSpace>(malloc(sizeof(ListThreadSpace) * MAX_SPACE));
+    for (int i = 0 ; i < MAX_SPACE ; i++) {
         tableThread[i].space = nullptr;
         //tableThread[i].thread = nullptr; // esto rompe nose porque
     }
@@ -273,7 +273,8 @@ Cleanup()
 #ifdef USER_PROGRAM
     delete machine;
     //delete synchConsole; //PROBAR: ACT esto tira un doble free hay que revisar donde se borra
-    delete bitmap; //PROBAR
+    delete bitmap;
+    delete tableThread;
 #endif
 
 #ifdef FILESYS_NEEDED

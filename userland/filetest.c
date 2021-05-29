@@ -10,10 +10,8 @@
 
 
 #include "syscall.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <assert.h>
-
+#include "../userprog/syscall.h" // Include fix IntelliSense
+#include "lib.h"
 
 int
 main(void)
@@ -22,12 +20,24 @@ main(void)
     OpenFileId o = Open("test.txt");
     char *args[] = {"HOLAcm7\n"};
     SpaceId proc1 = Exec("../userland/filetest2", 1, args);
-    Write("Hello world\n",12,o);
+    char *cadena = "Hello world\n";
+    Write(cadena, strlen(cadena), o);
     Close(o);
     Stats();
     int i = Join(proc1);
     if (i == 1)
-        Write("Retorno bien el Join\n",29,1);
-    //Halt();
+        strput("Retorno bien el Join\n");
+    Stats();
+    
+    char *args2[] = {"HOLAcm72\n"};
+    SpaceId proc2 = Exec("../userland/filetest2", 1, args2);
+    char *cadena2 = "Hello world2\n";
+    strput(cadena2);
+    Stats();
+    int i2 = Join(proc2);
+    if (i2 == 1) {
+        char *msg = "Retorno bien el Join 2\n";
+        Write(msg,strlen(msg),1);
+    }
 }
 

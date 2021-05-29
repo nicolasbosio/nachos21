@@ -36,6 +36,9 @@ public:
     ///
     bool IsZombie(Thread *thread);
 
+    ///
+    void DeleteZombie(Thread *thread);
+
     /// Dequeue first thread on the ready list, if any, and return thread.
     Thread *FindNextToRun();
 
