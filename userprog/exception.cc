@@ -151,7 +151,6 @@ SyscallHandler(ExceptionType _et)
                       FILE_NAME_MAX_LEN);
                 break;
             }
-
             DEBUG('e', "`Create` requested for file `%s`.\n", filename);
             if(!fileSystem->Create(filename, 100)){
                 machine->WriteRegister(2, -1);
@@ -393,7 +392,6 @@ SyscallHandler(ExceptionType _et)
                     machine->WriteRegister(2, -1);
                     break;
                 }
-
                 bytesRead = file->Read(dest, (unsigned)size);
                 if(bytesRead > 0)
                 {

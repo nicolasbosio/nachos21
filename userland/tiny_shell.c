@@ -1,8 +1,6 @@
 #include "syscall.h"
 #include "../userprog/syscall.h" // Include fix IntelliSense
 #include "lib.h"
-
-/// ACOMODAR TINY
 int
 main(void)
 {

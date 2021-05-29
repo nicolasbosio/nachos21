@@ -39,6 +39,5 @@ main(void)
         char *msg = "Retorno bien el Join 2\n";
         Write(msg,strlen(msg),1);
     }
-    
 }
 
