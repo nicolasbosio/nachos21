@@ -40,7 +40,6 @@ extern Timer *timer;                 ///< The hardware alarm clock.
 #include "lib/table.hh"
 
 #define MAX_SPACE 10
-
 typedef int SpaceId;
 typedef struct  
 {
