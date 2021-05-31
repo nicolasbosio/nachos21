@@ -47,7 +47,6 @@ MMU::MMU()
     for (unsigned i = 0; i < TLB_SIZE; i++) {
         tlb[i].valid = false;
     }
-    tlbPage = 0;
     pageTable = nullptr;
 #else  // Use linear page table.
     tlb = nullptr;
@@ -78,26 +77,6 @@ MMU::PrintTLB() const
     }
 #else
     printf("TLB not present in the machine.\n");
-#endif
-}
-
-bool 
-MMU::SetTlbPage(TranslationEntry pageTranslation)
-{
-#ifdef USE_TLB
-    /* COMPLETAR CHEQUEOS
-    if(pageTranslation == nullptr) {
-        DEBUG('a', "");
-        return false;
-    }
-    */
-    DEBUG('p', "Set Tlb in page: %d\n", tlbPage);
-    tlb[tlbPage] = pageTranslation;
-    tlbPage = (tlbPage + 1) % TLB_SIZE;
-    return true;
-#else
-    DEBUG('p', "TLB not present in the machine.\n");
-    return false;
 #endif
 }
 

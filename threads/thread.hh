@@ -147,6 +147,12 @@ public:
 
     void Print() const;
 
+#ifdef SWAP
+    void SetSwapFileName(const char* swapFile);
+
+    const char* GetSwapFileName();
+#endif
+
 private:
     // Some of the private data for this class is listed above.
 
@@ -169,6 +175,9 @@ private:
     unsigned int priority;
     unsigned int oldPriority;
     int returnStatus;
+#ifdef SWAP
+    const char* swapFileName;
+#endif
 
 #ifdef USER_PROGRAM
     /// User-level CPU register state.

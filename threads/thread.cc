@@ -23,6 +23,7 @@
 
 #include <inttypes.h>
 #include <stdio.h>
+#include <string.h>
 
 
 /// This is put at the top of the execution stack, for detecting stack
@@ -82,6 +83,10 @@ Thread::~Thread()
 #ifdef USER_PROGRAM
     delete this->space;
     delete this->fileTable;
+#endif
+#ifdef SWAP
+    fileSystem->Remove(swapFileName);
+    delete swapFileName;
 #endif
 }
 
@@ -177,6 +182,15 @@ Thread::Print() const
 {
     printf("%s, ", name);
 }
+
+#ifdef SWAP
+void 
+Thread::SetSwapFileName(const char* swapFile) {
+    swapFileName = swapFile;
+}
+
+const char* Thread::GetSwapFileName() { return swapFileName; }
+#endif
 
 /// Called by `ThreadRoot` when a thread is done executing the forked
 /// procedure.

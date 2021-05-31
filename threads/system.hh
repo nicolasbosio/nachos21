@@ -50,7 +50,12 @@ typedef ListTS* ListThreadSpace;
 
 extern Machine *machine;  // User program memory and registers.
 extern SynchConsole *synchConsole;
-extern Bitmap *bitmap;
+#ifndef SWAP
+extern Bitmap *memoryMap;
+#else
+#include "lib/coremap.hh"
+extern CoreMap *memoryCoreMap;
+#endif
 extern ListThreadSpace tableThread;
 #endif
 

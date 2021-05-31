@@ -1,5 +1,5 @@
-userland/
-!*/userland/*.*
+
+SWAP.*
 *.o
 *.depends
 *.coff

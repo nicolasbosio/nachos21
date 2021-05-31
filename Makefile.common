@@ -45,8 +45,8 @@ THREAD_HDR = threads/condition.hh             \
              threads/system.hh                \
              threads/thread.hh                \
              threads/thread_test.hh           \
-             threads/thread_test_damian.hh           \
-             threads/thread_test_channel.hh     \
+             threads/thread_test_damian.hh    \
+             threads/thread_test_channel.hh   \
              threads/thread_test_scheduler.hh \
              threads/thread_test_garden.hh    \
              threads/thread_test_garden_lock.hh    \
@@ -73,8 +73,8 @@ THREAD_SRC = threads/main.cc                  \
              threads/switch.S                 \
              threads/thread.cc                \
              threads/thread_test.cc           \
-             threads/thread_test_damian.cc           \
-             threads/thread_test_channel.cc     \
+             threads/thread_test_damian.cc    \
+             threads/thread_test_channel.cc   \
              threads/thread_test_scheduler.cc \
              threads/thread_test_garden.cc    \
              threads/thread_test_garden_lock.cc    \
@@ -99,6 +99,7 @@ USERPROG_HDR = userprog/address_space.hh            \
                filesys/file_system.hh               \
                filesys/open_file.hh                 \
                lib/bitmap.hh                        \
+               lib/coremap.hh                       \
                machine/console.hh                   \
                machine/encoding.hh                  \
                machine/endianness.hh                \
@@ -117,6 +118,7 @@ USERPROG_SRC = userprog/address_space.cc            \
                userprog/transfer.cc                 \
                userprog/synch_console.cc            \
                lib/bitmap.cc                        \
+               lib/coremap.cc                       \
                machine/console.cc                   \
                machine/encoding.cc                  \
                machine/endianness.cc                \
@@ -146,10 +148,10 @@ FILESYS_SRC = filesys/directory.cc   \
               filesys/synch_disk.cc  \
               machine/disk.cc
 
-NETWORK_HDR = network/post.hh \
+NETWORK_HDR = network/post.hh      \
               machine/network.hh
-NETWORK_SRC = network/net_test.cc \
-              network/post.cc     \
+NETWORK_SRC = network/net_test.cc  \
+              network/post.cc      \
               machine/network.cc
 
 # Assemble the expected paths by prepending `BASE_DIR`.  You do not need to

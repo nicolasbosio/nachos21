@@ -92,6 +92,7 @@ void Copy(const char *unixFile, const char *nachosFile);
 void Print(const char *file);
 void PerformanceTest(void);
 void StartProcess(const char *file);
+int StartProcess2(const char *filename, bool joinable, int argvAddr, bool isMain);
 void SynchConsoleTest(const char *in, const char *out);
 void SynchConsoleTest2(const char *in, const char *out);
 void ConsoleTest(const char *in, const char *out);
@@ -143,6 +144,7 @@ main(int argc, char **argv)
 #ifdef USER_PROGRAM
         if (!strcmp(*argv, "-x")) {          // Run a user program.
             ASSERT(argc > 1);
+            //StartProcess2(*(argv + 1), 0, 0, true);
             StartProcess(*(argv + 1));
             argCount = 2;
         } else if (!strcmp(*argv, "-tc")) {  // Test the console.

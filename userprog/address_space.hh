@@ -19,6 +19,8 @@
 
 const unsigned USER_STACK_SIZE = 1024;  ///< Increase this as necessary!
 
+class CoreItem;
+class Thread;
 
 class AddressSpace {
 public:
@@ -47,15 +49,24 @@ public:
     void InitRegisters();
 
     ///
-    void InvalidateTlb();
+    void InvalidateTlb(Thread *exitThread);
 
     ///
     TranslationEntry GetTranslationEntry(unsigned vPage);
     
     /// Save/restore address space-specific info on a context switch.
     void SaveState();
-    void RestoreState();
+    void SavePageFromTLB(unsigned page);
+    void RestoreState(Thread *exitThread);
     bool IsInitialized();
+    unsigned GetSize();
+    bool SetTlbPage(TranslationEntry pageTranslation);
+#ifdef SWAP
+    int WritePagetoSwap();
+    bool LoadPageFromSwap(TranslationEntry pageTranslation);
+    void PrintCoreMap(); // BORRAR
+    void PrintPageTable(); //BORRAR
+#endif
 
 private:
 
@@ -64,6 +75,11 @@ private:
 
     /// Number of pages in the virtual address space.
     unsigned numPages;
+
+#if USE_TLB
+    ///
+    unsigned tlbPage;
+#endif
 
     ///
     bool initialized;

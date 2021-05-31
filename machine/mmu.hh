@@ -19,7 +19,7 @@
 const unsigned PAGE_SIZE = SECTOR_SIZE;  ///< Set the page size equal to the
                                          ///< disk sector size, for
                                          ///< simplicity.
-const unsigned NUM_PHYS_PAGES = 128;
+const unsigned NUM_PHYS_PAGES = 64;
 const unsigned MEMORY_SIZE = NUM_PHYS_PAGES * PAGE_SIZE;
 
 /// Number of entries in the TLB, if one is present.
@@ -46,8 +46,6 @@ public:
     ExceptionType WriteMem(unsigned addr, unsigned size, int value);
 
     void PrintTLB() const;
-
-    bool SetTlbPage(TranslationEntry pageTranslation);
 
     /// Data structures -- all of these are accessible to Nachos kernel code.
     /// “Public” for convenience.
@@ -85,9 +83,6 @@ public:
     unsigned pageTableSize;
 
 private:
-
-    ///
-    unsigned tlbPage;
     
     /// Retrieve a page entry either from a page table or the TLB.
     ExceptionType RetrievePageEntry(unsigned vpn,
