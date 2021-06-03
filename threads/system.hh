@@ -57,6 +57,7 @@ extern Bitmap *memoryMap;
 extern CoreMap *memoryCoreMap;
 #endif
 extern ListThreadSpace tableThread;
+
 #endif
 
 #ifdef FILESYS_NEEDED  // *FILESYS* or *FILESYS_STUB*.

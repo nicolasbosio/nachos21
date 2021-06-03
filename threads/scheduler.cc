@@ -51,7 +51,7 @@ Scheduler::ReadyToRun(Thread *thread)
 
     DEBUG('t', "Putting thread %s on ready list\n", thread->GetName());
 
-    thread->SetStatus(READY);
+    thread->SetStatus(READY);   
     readyList[thread->GetPriority()]->Append(thread);
 }
 
@@ -113,7 +113,6 @@ Scheduler::Run(Thread *nextThread)
 
 #ifdef USER_PROGRAM  // Ignore until running user programs.
     if (currentThread->space != nullptr) {
-        printf("Space!!\n");
         // If this thread is a user program, save the user's CPU registers.
         currentThread->SaveUserState();
         currentThread->space->SaveState();

@@ -130,8 +130,7 @@ main(void)
 
         // TODO: check for errors when calling `Exec`; this depends on how
         //       errors are reported.
-
-        if(joinable)
+        if(joinable && newProc != -1)
             Join(newProc);
 
         // TODO: is it necessary to check for errors after `Join` too, or

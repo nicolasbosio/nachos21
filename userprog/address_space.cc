@@ -34,7 +34,7 @@ AddressSpace::AddressSpace(OpenFile *executable_file)
     //
 #if USE_TLB
     ///
-    tlbPage = 0;
+    tlbIndex = 0;
 #endif
     // How big is address space?
     unsigned size = exe.GetSize() + USER_STACK_SIZE;
@@ -78,6 +78,7 @@ AddressSpace::AddressSpace(OpenFile *executable_file)
         pageTable[i].dirty        = false;
         pageTable[i].readOnly     = false;
         pageTable[i].inSwap       = false;
+        pageTable[i].inTLB        = -1;
           // If the code segment was entirely on a separate page, we could
           // set its pages to be read-only.
     }
@@ -160,7 +161,7 @@ AddressSpace::~AddressSpace()
 
 
 #ifdef DEMAND_LOADING
-///
+///COMENTAR
 TranslationEntry
 AddressSpace::LoadPage(unsigned vAddr)
 {
@@ -178,18 +179,28 @@ AddressSpace::LoadPage(unsigned vAddr)
 
     unsigned pid = 0;
     for( ; pid < MAX_SPACE ; pid++) {
-        DEBUG('p', "FOR RANCIO: pid -> %d\n", pid); //BORRAR
+        //DEBUG('p', "FOR RANCIO: pid -> %d\n", pid); //BORRAR
         if((AddressSpace *)tableThread[pid].space == currentThread->space) {
             break;   
         }
     }
 
     int physPage = memoryCoreMap->Add(this, pageNum, pid);
-    DEBUG('p', "Physical page devuelta por coremap: %d\n", physPage); //BORRAR
+    // si no hay mas espacio el add devuelve -1 y no agrega nada al core map
+    // pero mas abajo estamos escribiendo en el marco fisico que nos devuelve
+    // writetoswap pero nunca volvemos a hacer un add
+    //DEBUG('p', "Physical page devuelta por coremap: %d\n", physPage); //BORRAR
 
     if(physPage == -1) {
         DEBUG('p', "nos quedamos sin espacio\n"); //BORRAR
-        physPage = WritePagetoSwap();
+        //physPage = WritePagetoSwap();
+        int victim = WritePagetoSwap();
+        //Si ESTO NO ES ATOMICO ACA SE PUEDE ROMPER ALGO
+        //SI EN EL MEDIO DEL PROCESO SE CEDE EL CONTROL
+        //Y EL OTRO HILO TAMB SWAPEA PAGINAS
+        //VER DE PONER SEMAFOROS PARA EVITAR PROBLEMAS
+        physPage = memoryCoreMap->Add(this, pageNum, pid);
+        ASSERT(victim == physPage);
     }
 
 #endif
@@ -198,6 +209,8 @@ AddressSpace::LoadPage(unsigned vAddr)
     pageTable[pageNum].virtualPage = pageNum;
     pageTable[pageNum].physicalPage = physPage;
     pageTable[pageNum].valid = true;
+    pageTable[pageNum].inSwap = false;
+    pageTable[pageNum].inTLB = -1;
     
     if (vAddr >= (codeSize + initDataSize))
     {
@@ -248,21 +261,21 @@ AddressSpace::WritePagetoSwap()
     MMU *mmu = machine->GetMMU();
     char *mainMemory = mmu->mainMemory;
     unsigned victimIndex = memoryCoreMap->PickVictim();
-    DEBUG('p', "Victim index: %d\n", victimIndex); //BORRAR
+    DEBUG('x', "Victim index: %d\n", victimIndex); //BORRAR
     CoreItem *victimData = memoryCoreMap->GetItem(victimIndex);
-    DEBUG('p', "VictimData pid: %d\n", victimData->pid); //BORRAR
+    DEBUG('x', "VictimData pid: %d\n", victimData->pid); //BORRAR
     const char *swapFileName = tableThread[victimData->pid].thread->GetSwapFileName();
-    DEBUG('p', "Swap filename: %s\n", swapFileName); //BORRAR
+    DEBUG('x', "Swap filename: %s\n", swapFileName); //BORRAR
     OpenFile *swapFile = fileSystem->Open(swapFileName);
-    DEBUG('p', "Write page to swap: phyPage -> %d -- swapFile -> %s -- virtPage %d\n", victimIndex, swapFileName, victimData->virtualPage);
+    DEBUG('x', "Write page to swap: phyPage -> %d -- swapFile -> %s -- virtPage %d\n", victimIndex, swapFileName, victimData->virtualPage);
     int writeSize = swapFile->WriteAt(&mainMemory[victimData->physicalPage * PAGE_SIZE], PAGE_SIZE, victimData->virtualPage * PAGE_SIZE);
-    if(writeSize != PAGE_SIZE) 
+    if(writeSize != PAGE_SIZE)
     {
         return -1;
     }
     
 #ifdef USE_TLB
-    //ESTO NO ES TLBPAGE!! esto tiene que ser la posicion donde estaba en la tlb si es que estaba en la tlb
+    //ESTO NO ES tlbIndex!! esto tiene que ser la posicion donde estaba en la tlb si es que estaba en la tlb
     
     int tlbVictimIndex = victimData->spaceId->pageTable[victimData->virtualPage].inTLB;
     if(tlbVictimIndex != -1)
@@ -276,72 +289,89 @@ AddressSpace::WritePagetoSwap()
 
     victimData->spaceId->pageTable[victimData->virtualPage].inSwap = true;
     victimData->spaceId->pageTable[victimData->virtualPage].inTLB = -1;
-    victimData->spaceId->pageTable[victimData->virtualPage].physicalPage = -1;
+    victimData->spaceId->pageTable[victimData->virtualPage].physicalPage = 0;
     memoryCoreMap->Clear(victimIndex);
     
     return victimIndex;
 }
 
 bool
-AddressSpace::LoadPageFromSwap(TranslationEntry pageTranslation)
+AddressSpace::LoadPageFromSwap(TranslationEntry *pageTranslation)
 {
     ///SI ESTOY CARGANDO UNA PAGINA DESDE SWAP SOY EL DUEÑO, NO???
-    DEBUG('p', "Requested Load Page from SWAP - physical: %d | virtual: %d | threadName: %s\n",
-          pageTranslation.physicalPage, pageTranslation.virtualPage, currentThread->GetName());
+    const char *swapFile = currentThread->GetSwapFileName();
+    if(swapFile == nullptr) return false;
+    DEBUG('x', "Requested Load Page from SWAP: %s | virtual: %d | threadName: %s\n",
+          currentThread->GetSwapFileName(), pageTranslation->virtualPage, currentThread->GetName());
     //VER DONDE PUEDE FALLAR
     char *mainMemory = machine->GetMMU()->mainMemory;
-    const char *swapFile = currentThread->GetSwapFileName();
-    DEBUG('p', "SwapFile: %s\n", swapFile);
-    if(swapFile == nullptr) return false;
     OpenFile *swap = fileSystem->Open(swapFile);
     if(swap == nullptr) return false;
-    //ANTES DE CARGAR LA PAGINA LE TENGO QUE PEDIR ESPACIO AL COREMAP!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    //SINO ESTOY PISANDO CUALQUIER COSA!!!!!!!!!!!
 
+    ///IMPLEMENTAR DE MANERA MAS FACIL EL REVERSEMAPING
+    /// donde le pasemos el marco fisico
     unsigned pid = 0;
     for( ; pid < MAX_SPACE ; pid++) {
-        DEBUG('p', "FOR RANCIO: pid -> %d\n", pid); //BORRAR
+        DEBUG('x', "FOR RANCIO LOAD PAGE SWAP: pid -> %d\n", pid); //BORRAR
         if((AddressSpace *)tableThread[pid].space == currentThread->space) {
             break;   
         }
     }
 
-    int physPage = memoryCoreMap->Add(currentThread->space, pageTranslation.virtualPage, pid);
+    // si la pagina victima no esta dirty creo que se podria evitar mandarla a swap
+    // y solamente marcarla como invalida para que desp cuando se necesite se traiga desde
+    // demand loading directamente, nos evitariamos una operacion en disco
+    int physPage = memoryCoreMap->Add(currentThread->space, pageTranslation->virtualPage, pid);
     if(physPage == -1) {
-        physPage = WritePagetoSwap();
+        DEBUG('x', "No space in memory to load page from SWAP\n"); //BORRAR
+        //physPage = WritePagetoSwap();
+        int victim = WritePagetoSwap();
+        //Si ESTO NO ES ATOMICO ACA SE PUEDE ROMPER ALGO
+        //SI EN EL MEDIO DEL PROCESO SE CEDE EL CONTROL
+        //Y EL OTRO HILO TAMB SWAPEA PAGINAS
+        //VER DE PONER SEMAFOROS PARA EVITAR PROBLEMAS
+        physPage = memoryCoreMap->Add(currentThread->space, pageTranslation->virtualPage, pid);
+        ASSERT(victim == physPage);
     }
     
-    DEBUG('p', "LOADING Page from SWAP - physical: %d | virtual: %d | threadName: %s",
-          pageTranslation.physicalPage, pageTranslation.virtualPage, currentThread->GetName());
-    int sizeRead = swap->ReadAt(&mainMemory[physPage * PAGE_SIZE], PAGE_SIZE, pageTranslation.virtualPage * PAGE_SIZE);
+    
+    DEBUG('x', "LOADING Page from SWAP - physical: %d | virtual: %d | threadName: %s\n",
+          physPage, pageTranslation->virtualPage, currentThread->GetName());
+    int sizeRead = swap->ReadAt(&mainMemory[physPage * PAGE_SIZE], PAGE_SIZE, pageTranslation->virtualPage * PAGE_SIZE);
     if(sizeRead != PAGE_SIZE) return false;
-    pageTable[pageTranslation.virtualPage].physicalPage = physPage;
+    pageTable[pageTranslation->virtualPage].physicalPage = physPage;
+    pageTranslation->physicalPage = physPage;
     delete swap;
-    pageTable[pageTranslation.virtualPage].inSwap = false;
+    pageTable[pageTranslation->virtualPage].inSwap = false;
+    pageTranslation->inSwap = false;
+    pageTranslation->inTLB = -1;
+    //estoy modificando el page translation del hilo pero no el que en exeptio devuelve el gettranslation
     return true;
 }
 
-/// BORRAR
+/// COMENTAR
 void
 AddressSpace::PrintCoreMap()
 {
     CoreItem *item;
-    printf("COREMAP\n");
+    printf("\nCOREMAP content (%d entries)\n", NUM_PHYS_PAGES);
     for(unsigned page = 0 ; page < NUM_PHYS_PAGES ; page++) {
         item = memoryCoreMap->GetItem(page);
-        printf("\n\tPage: %d -- InSwap %d\n", page, item->inSwap);
+        printf("\t(%d) -> Valid: %d pid: %d vPage: %d phyPage: %d Space: %p\n", 
+            page, item->valid, item->pid, item->virtualPage, item->physicalPage, item->spaceId);
     }
 }
 
-/// BORRAR
+/// COMENTAR
 void
 AddressSpace::PrintPageTable() 
 {
-    printf("PAGE TABLE\n");
+    printf("\nPAGE TABLE (%s) content (%d entries)\n",currentThread->GetName(), numPages);
     TranslationEntry entry;
-    for(unsigned page = 0 ; page < numPages ; page++){
+    for(unsigned page = 0 ; page < numPages ; page++) {
         entry = pageTable[page];
-        printf("\tPage: %d -- Valid: %d -- InSwap %d\n", page, entry.valid, entry.inSwap);
+        printf("\t(%d) -> vPage: %d phPage: %d Valid: %d inSwap: %d inTLB: %d\n", 
+            page, entry.virtualPage, entry.physicalPage, entry.valid, entry.inSwap, entry.inTLB);
     }
 }
 #endif
@@ -352,12 +382,10 @@ AddressSpace::PrintPageTable()
 void
 AddressSpace::InvalidateTlb(Thread *exitThread)
 {
-    printf("INVALIDATE\n");
     MMU *mmu = machine->GetMMU();
     for (unsigned i = 0; i < TLB_SIZE; i++)
     {
         if(mmu->tlb[i].valid == true) {
-            printf("IF\n");
             mmu->tlb[i].valid = false;
             if(exitThread != nullptr)
             {
@@ -376,6 +404,7 @@ AddressSpace::SavePageFromTLB(unsigned page)
     {
         pageTable[tlb[page].virtualPage].dirty = tlb[page].dirty;
         pageTable[tlb[page].virtualPage].use   = tlb[page].use;
+        tlb[page].valid = false;
     }
 }
 
@@ -391,14 +420,16 @@ AddressSpace::SetTlbPage(TranslationEntry pageTranslation)
     }
     */
     TranslationEntry *tlb = machine->GetMMU()->tlb;
-    DEBUG('p', "Set Tlb in page: %d\n", tlbPage);
+    DEBUG('p', "Set Tlb in page: %d\n", tlbIndex);
 
-    currentThread->space->SavePageFromTLB(tlbPage);
-    pageTable[tlb[tlbPage].virtualPage].inTLB = -1;
-    tlb[tlbPage] = pageTranslation;
-    pageTable[pageTranslation.virtualPage].inTLB = tlbPage;
-    tlbPage = (tlbPage + 1) % TLB_SIZE;
-    DEBUG('p', "Set Tlb in page FIN!!: %d\n", tlbPage);
+    if(tlb[tlbIndex].valid)
+    {
+        SavePageFromTLB(tlbIndex);
+        pageTable[tlb[tlbIndex].virtualPage].inTLB = -1;
+    }
+    tlb[tlbIndex] = pageTranslation;
+    pageTable[pageTranslation.virtualPage].inTLB = tlbIndex;
+    tlbIndex = (tlbIndex + 1) % TLB_SIZE;
     return true;
 #else
     DEBUG('p', "TLB not present in the machine.\n");
@@ -413,9 +444,11 @@ AddressSpace::SetTlbPage(TranslationEntry pageTranslation)
 void
 AddressSpace::SaveState()
 {
+    TranslationEntry *tlb = machine->GetMMU()->tlb;
     for(unsigned page = 0; page < TLB_SIZE; page++)
     {
         SavePageFromTLB(page);
+        pageTable[tlb[page].virtualPage].inTLB = -1;
     }
 }
 

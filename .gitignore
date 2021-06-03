@@ -1,4 +1,5 @@
-
+userland/
+!/userland/*.*
 SWAP.*
 *.o
 *.depends

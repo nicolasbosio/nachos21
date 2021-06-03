@@ -31,7 +31,6 @@ CoreMap::Clear(unsigned which)
 {
     map->Clear(which);
     table[which].valid = false;
-    table[which].inSwap = false;
     table[which].pid = -1;
     table[which].spaceId = nullptr;
     table[which].physicalPage = -1;
@@ -48,7 +47,6 @@ CoreMap::Add(AddressSpace *space, unsigned vPage, unsigned pid)
         table[index].spaceId = space;
         table[index].virtualPage = vPage;
         table[index].physicalPage = index;
-        table[index].inSwap = false;
         table[index].pid = pid;
     }
     return index;

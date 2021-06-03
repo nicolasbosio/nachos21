@@ -51,8 +51,9 @@ void newThread(void *arg)
     char** argv = (char**) arg;
     currentThread->space->InitRegisters(); // Set the initial register values.
     currentThread->space->RestoreState(nullptr);  // Load page table register.
+    int sp = machine->ReadRegister(STACK_REG);
     if(arg != nullptr) {
-        int sp = machine->ReadRegister(STACK_REG);
+        sp = machine->ReadRegister(STACK_REG);
         unsigned int count = 0;
         if(argv != nullptr) {
             count = WriteArgs(argv);
@@ -64,7 +65,7 @@ void newThread(void *arg)
     }
     machine->Run(); // Jump to the user progam.
 }
-
+/*
 int
 StartProcess2(const char *filename, bool joinable, int argvAddr, bool isMain)
 {
@@ -179,6 +180,8 @@ StartProcess2(const char *filename, bool joinable, int argvAddr, bool isMain)
     return i;
 
 }
+*/
+
 
 /// Run a user program.
 ///
@@ -217,6 +220,8 @@ StartProcess(const char *filename)
 #ifndef DEMAND_LOADING
     delete executable;
 #endif
+    MMU *mem = machine->GetMMU(); //BORRAR
+    mem->PrintTLB(); //BORRAR
     space->InitRegisters();  // Set the initial register values.
     space->RestoreState(nullptr);   // Load page table register.
     machine->Run();  // Jump to the user progam.
@@ -308,7 +313,7 @@ SyscallHandler(ExceptionType _et)
             }
             /////////// CORTAR ACA Y SEPARAR TODO EN STARTPROCESS
             
-            DEBUG('e', "'Exec' Request for file `%s`.\n", filename);
+            DEBUG('e', "'EXEC' Request for file `%s`.\n", filename);
             //int i = StartProcess(filename, joinable, argvAddr, false);
             
             char *threadName = new char[FILE_NAME_MAX_LEN + 1];
@@ -372,7 +377,7 @@ SyscallHandler(ExceptionType _et)
 #ifdef SWAP
             char *fileSwap = new char [FILE_NAME_MAX_LEN];
             sprintf(fileSwap, "SWAP.%d", i);
-            DEBUG('e', "`Create` requested for SWAP File `%s`.\n", fileSwap);
+            //DEBUG('e', "`Create` requested for SWAP File `%s`.\n", fileSwap);
             if (fileSystem->Create(fileSwap, newSpace->GetSize()))
             {
                 child->SetSwapFileName(fileSwap);
@@ -380,12 +385,11 @@ SyscallHandler(ExceptionType _et)
                     newSpace, child->GetName(), fileSwap, newSpace->GetSize());
             }
 #endif
-
             DEBUG('e', "Success in Exec for %s\n", filename);
+
 #ifndef DEMAND_LOADING
             delete file;
 #endif
-            
             machine->WriteRegister(2, i);
             break;
         }
@@ -393,7 +397,7 @@ SyscallHandler(ExceptionType _et)
         case SC_JOIN: {
             int index = machine->ReadRegister(4);
             if(index < MAX_SPACE && index >= 0) {
-                DEBUG('e', "´Join´ called for space %p\n", tableThread[index].space);
+                //DEBUG('e', "´Join´ called for space %p\n", tableThread[index].space);
                 Thread *thread = tableThread[index].thread;
                 DEBUG('e', "´Join Thread´ called for thread %s\n", thread->GetName());
                 int ret = thread->Join();
@@ -595,11 +599,13 @@ SyscallHandler(ExceptionType _et)
 static void
 PageFaultHandler(ExceptionType _et) 
 {
+    DEBUG('e', "Page Fault Handler\n");
     unsigned badVAddr = machine->ReadRegister(BAD_VADDR_REG);
     unsigned int numPage = badVAddr / PAGE_SIZE;
-    DEBUG('e', "'Page Fault exception' Virtual address: %d -- Page: %d -- Current thread: %s\n"
+    DEBUG('e', "'Virtual address: %d -- Index PageTable: %d -- Current thread: %s\n"
             , badVAddr, numPage, currentThread->GetName());
     // con la direccion virtual que nos llega tenemos que ir a la pagetable de el proceso
+    // y ver si tiene una traduccion valida/invalida
     TranslationEntry pageTranslation = currentThread->space->GetTranslationEntry(numPage);
 
 #ifdef DEMAND_LOADING
@@ -608,25 +614,26 @@ PageFaultHandler(ExceptionType _et)
         pageTranslation = currentThread->space->LoadPage(badVAddr);
     }
     else
-        DEBUG('e', "Page translation valid! found for page %d in pageTable\n",numPage);
+        DEBUG('e', "Translation valid found for page %d in pageTable\n",numPage);
 #endif
 
 #ifdef SWAP
-    DEBUG('e', "Item Data SWAP: \n\t Valid -> %d\n\t inSwap: -> %d\n", pageTranslation.valid, pageTranslation.inSwap);
     if (pageTranslation.inSwap)
-    {
-        DEBUG('e', "LOAD PAGE FROM SWAP REQUIRED\n");
-        bool valid = currentThread->space->LoadPageFromSwap(pageTranslation); // esto me tiene que devolver el page o setearlo desde adentro
+    {   
+        DEBUG('e', "Page in SWAP!\n");
+        bool valid = currentThread->space->LoadPageFromSwap(&pageTranslation); // esto me tiene que devolver el page o setearlo desde adentro
         ASSERT(valid);
     }
     //currentThread->space->PrintCoreMap(); //BORRAR
     //currentThread->space->PrintPageTable(); //BORRAR
-    //MMU *mem = machine->GetMMU(); //BORRAR
-    //mem->PrintTLB(); //BORRAR
+    
 
 #endif
     
     currentThread->space->SetTlbPage(pageTranslation);
+
+    //MMU *mem = machine->GetMMU(); //BORRAR
+    //mem->PrintTLB(); //BORRAR
 }
 
 static void

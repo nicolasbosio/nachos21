@@ -49,7 +49,7 @@ public:
     void InitRegisters();
 
     ///
-    void InvalidateTlb(Thread *exitThread);
+    void InvalidateTlb(Thread* exitThread);
 
     ///
     TranslationEntry GetTranslationEntry(unsigned vPage);
@@ -57,13 +57,13 @@ public:
     /// Save/restore address space-specific info on a context switch.
     void SaveState();
     void SavePageFromTLB(unsigned page);
-    void RestoreState(Thread *exitThread);
+    void RestoreState(Thread* exitThread);
     bool IsInitialized();
     unsigned GetSize();
     bool SetTlbPage(TranslationEntry pageTranslation);
 #ifdef SWAP
     int WritePagetoSwap();
-    bool LoadPageFromSwap(TranslationEntry pageTranslation);
+    bool LoadPageFromSwap(TranslationEntry *pageTranslation);
     void PrintCoreMap(); // BORRAR
     void PrintPageTable(); //BORRAR
 #endif
@@ -77,8 +77,7 @@ private:
     unsigned numPages;
 
 #if USE_TLB
-    ///
-    unsigned tlbPage;
+    unsigned tlbIndex; ///
 #endif
 
     ///

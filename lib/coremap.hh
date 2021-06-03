@@ -9,7 +9,6 @@
 
 #include "userprog/address_space.hh"
 #include "lib/bitmap.hh"
-
 #ifndef NACHOS_COREMAP__HH
 #define NACHOS_COREMAP__HH
 
@@ -22,9 +21,6 @@ public:
 
     /// The SpaceId owner
     AddressSpace *spaceId;
-
-    ///
-    bool inSwap;
 
     ///
     int pid;

@@ -15,6 +15,7 @@
 /// * `a` -- address spaces (requires *USER_PROGRAM*).
 /// * `e` -- exception handling (requires *USER_PROGRAM*).
 /// * `n` -- network emulation (requires *NETWORK*).
+/// * `x` -- swap operation (requires *USE_SWAP*).
 ///
 /// See also `debug_opts.hh`.
 ///
