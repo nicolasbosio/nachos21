@@ -217,12 +217,7 @@ Thread::Finish(int retVal)
         threadToBeDestroyed = nullptr;
         scheduler->MakeZombie(currentThread);
     }
-/*
-#if defined(USER_PROGRAM) && defined(SWAP)
-    printf("PAGE TABLE MAIN AFTER THREAD FINISH\n");
-    tableThread[0].thread->space->PrintPageTable();
-#endif
-*/
+
     Sleep();  // Invokes `SWITCH`.
     // Not reached.
 }

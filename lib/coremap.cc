@@ -16,7 +16,6 @@ CoreMap::CoreMap(unsigned size)
     {
         Clear(i);
     }
-    // llevar una lista de las paginas en swap???
 }
 
 CoreMap::~CoreMap()
@@ -35,6 +34,7 @@ CoreMap::Clear(unsigned which)
     table[which].spaceId = nullptr;
     table[which].physicalPage = -1;
     table[which].virtualPage = -1;
+    table[which].inTlb = -1;
 }
 
 ///
@@ -48,6 +48,7 @@ CoreMap::Add(AddressSpace *space, unsigned vPage, unsigned pid)
         table[index].virtualPage = vPage;
         table[index].physicalPage = index;
         table[index].pid = pid;
+        table[index].inTlb = -1;
     }
     return index;
 }
@@ -71,4 +72,16 @@ unsigned
 CoreMap::PickVictim()
 {
     return (unsigned)SystemDep::Random() % NUM_PHYS_PAGES;
+}
+
+void
+CoreMap::SetItemTlb(unsigned index, unsigned tlbPos)
+{
+    table[index].inTlb = tlbPos;
+}
+
+void
+CoreMap::ClearItemTlb(unsigned index)
+{
+    table[index].inTlb = -1;
 }

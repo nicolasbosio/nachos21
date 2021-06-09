@@ -32,6 +32,9 @@ public:
     /// `mainMemory`).
     int physicalPage;
 
+    ///
+    int inTlb; 
+
 private:
 };
 
@@ -59,6 +62,12 @@ public:
     
     ///
     unsigned PickVictim();
+
+    ///
+    void SetItemTlb(unsigned index, unsigned tlbPos);
+
+    ///
+    void ClearItemTlb(unsigned index);
 
 private:
     CoreItem *table;

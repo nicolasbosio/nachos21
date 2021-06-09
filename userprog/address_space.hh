@@ -13,7 +13,6 @@
 #ifndef NACHOS_USERPROG_ADDRESSSPACE__HH
 #define NACHOS_USERPROG_ADDRESSSPACE__HH
 
-
 #include "filesys/file_system.hh"
 #include "machine/translation_entry.hh"
 
@@ -41,30 +40,51 @@ public:
     ~AddressSpace();
 
 #ifdef DEMAND_LOADING
-    ///
-    TranslationEntry LoadPage(unsigned vAddr);
+    /// COMENTAR
+    TranslationEntry *LoadPage(unsigned vAddr);
 #endif
 
     /// Initialize user-level CPU registers, before jumping to user code.
     void InitRegisters();
 
-    ///
+    /// COMENTAR
     void InvalidateTlb(Thread* exitThread);
 
-    ///
-    TranslationEntry GetTranslationEntry(unsigned vPage);
+    /// COMENTAR
+    TranslationEntry * GetTranslationEntry(unsigned vPage);
     
     /// Save/restore address space-specific info on a context switch.
     void SaveState();
+
+    /// COMENTAR
     void SavePageFromTLB(unsigned page);
+
+    /// COMENTAR
     void RestoreState(Thread* exitThread);
+    
+    /// COMENTAR
     bool IsInitialized();
+    
+    /// COMENTAR
     unsigned GetSize();
-    bool SetTlbPage(TranslationEntry pageTranslation);
+    
+    /// COMENTAR
+    bool SetTlbPage(TranslationEntry *pageTranslation);
+    
+    /// COMENTAR
+    unsigned GetNumPages();
+
 #ifdef SWAP
+    /// COMENTAR
     int WritePagetoSwap();
+
+    /// COMENTAR
     bool LoadPageFromSwap(TranslationEntry *pageTranslation);
+
+    /// COMENTAR
     void PrintCoreMap(); // BORRAR
+
+    /// COMENTAR
     void PrintPageTable(); //BORRAR
 #endif
 
@@ -77,19 +97,22 @@ private:
     unsigned numPages;
 
 #if USE_TLB
-    unsigned tlbIndex; ///
+    /// COMENTAR
+    unsigned tlbIndex;
 #endif
 
-    ///
+    /// COMENTAR
     bool initialized;
 
 #ifdef DEMAND_LOADING
+    /// COMENTAR
     unsigned int codeSize;
+    
+    /// COMENTAR
     unsigned int initDataSize;
+    
+    /// COMENTAR
     OpenFile *executableFile;
 #endif
-
 };
-
-
 #endif

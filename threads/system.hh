@@ -8,7 +8,6 @@
 #ifndef NACHOS_THREADS_SYSTEM__HH
 #define NACHOS_THREADS_SYSTEM__HH
 
-
 #include "thread.hh"
 #include "scheduler.hh"
 #include "lib/utility.hh"
@@ -41,21 +40,25 @@ extern Timer *timer;                 ///< The hardware alarm clock.
 
 #define MAX_SPACE 10
 typedef int SpaceId;
+
 typedef struct  
 {
     SpaceId *space;
     Thread *thread;
 } ListTS;
+
 typedef ListTS* ListThreadSpace;
 
 extern Machine *machine;  // User program memory and registers.
 extern SynchConsole *synchConsole;
+
 #ifndef SWAP
 extern Bitmap *memoryMap;
 #else
 #include "lib/coremap.hh"
 extern CoreMap *memoryCoreMap;
 #endif
+
 extern ListThreadSpace tableThread;
 
 #endif
