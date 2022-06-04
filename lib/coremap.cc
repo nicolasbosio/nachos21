@@ -12,6 +12,7 @@ CoreMap::CoreMap(unsigned size)
 {
     table = new CoreItem[size];
     map = new Bitmap(size);
+    sem = new Semaphore("Semaforo Coremap", 1);
     for(unsigned i = 0; i < size; i++)
     {
         Clear(i);
@@ -22,6 +23,7 @@ CoreMap::~CoreMap()
 {
     delete table;
     delete map;
+    delete sem;
 }
 
 ///
@@ -84,4 +86,10 @@ void
 CoreMap::ClearItemTlb(unsigned index)
 {
     table[index].inTlb = -1;
+}
+
+Semaphore*
+CoreMap::GetSemaphore()
+{
+    return sem;
 }

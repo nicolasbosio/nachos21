@@ -41,6 +41,5 @@ main(void)
     }
     strput("FIN");
     return 0;
-    //Halt();
 }
 

@@ -33,6 +33,8 @@ public:
     /// Check whether the table is empty.
     bool IsEmpty() const;
 
+    int GetCurrent();
+
     /// Remove the item associated with a given index.
     ///
     /// Returns the removed item, or `T()` if the index is already
@@ -147,6 +149,14 @@ Table<T>::Update(int i, T item)
     data[i] = item;
     return previous;
 }
+
+template <class T>
+int
+Table<T>::GetCurrent()
+{
+    return current;
+}
+
 
 
 #endif

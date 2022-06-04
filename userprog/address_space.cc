@@ -56,8 +56,8 @@ AddressSpace::AddressSpace(OpenFile *executable_file)
     // have virtual memory.
     if (numPages > freePages)
     {
-        DEBUG('p', "La cantidad de paginas requeridas no alcanza\n");
 #ifndef SWAP
+        DEBUG('p', "La cantidad de paginas requeridas no alcanza!\n");
         return;
 #endif
     }
@@ -69,6 +69,7 @@ AddressSpace::AddressSpace(OpenFile *executable_file)
     pageTable = new TranslationEntry[numPages];
     for (unsigned i = 0; i < numPages; i++) {
         pageTable[i].virtualPage  = i;
+        // TODO: CREO esta condicion esta mal si DEMAND no esta pero si SWAP en memset linea 100 estamos pisando memoria
 #if defined(DEMAND_LOADING) || defined(SWAP)
         pageTable[i].physicalPage = 0;
         pageTable[i].valid = false;
@@ -87,12 +88,13 @@ AddressSpace::AddressSpace(OpenFile *executable_file)
     codeSize = exe.GetCodeSize();
     initDataSize = exe.GetInitDataSize();
     executableFile = executable_file;
+    // TODO: En el debug no es currentThread, desde currentThread estamos inicializando el espacio para otro hilo....
     DEBUG('p', "Initializing Demand Loading Address space for thread: %s\n", currentThread->GetName());
     DEBUG('p', "Inicializacion de demand loading correcta\n");
 #else
     char *mainMemory = machine->GetMMU()->mainMemory;
 
-    // Zero out the entire address space, to zero the unitialized data
+    // Zero out the entire address space, to zero the uninitialized data
     // segment and the stack segment.
     for(unsigned i = 0; i < numPages ; i++)
         memset(&mainMemory[pageTable[i].physicalPage * PAGE_SIZE], 0, PAGE_SIZE);
@@ -173,24 +175,16 @@ AddressSpace::LoadPage(unsigned vAddr)
     bool init = false;
     char *mainMemory = machine->GetMMU()->mainMemory;
 
+    // memoryCoreMap->GetSemaphore()->P();
 #ifndef SWAP
     int physPage = memoryMap->Find();
 #else
-
-    unsigned pid = 0;
-    for( ; pid < MAX_SPACE ; pid++) {
-        //DEBUG('p', "FOR RANCIO: pid -> %d\n", pid); //BORRAR
-        if((AddressSpace *)tableThread[pid].space == currentThread->space) {
-            break;   
-        }
-    }
-
-    int physPage = memoryCoreMap->Add(this, pageNum, pid);
+    int physPage = memoryCoreMap->Add(this, pageNum, currentThread->GetPid());
 
     if(physPage == -1) {
         DEBUG('p', "No space in memory to load page from binary file\n"); //BORRAR
         int victim = WritePagetoSwap();
-        physPage = memoryCoreMap->Add(this, pageNum, pid);
+        physPage = memoryCoreMap->Add(this, pageNum, currentThread->GetPid());
         ASSERT(victim == physPage);
     }
 
@@ -232,6 +226,7 @@ AddressSpace::LoadPage(unsigned vAddr)
         exe.ReadDataBlock(&mainMemory[pageTable[pageNum].physicalPage * PAGE_SIZE], readSize, (offset - codeSize));
         init = true;
     }
+    // memoryCoreMap->GetSemaphore()->V();
     ASSERT(init);
 
     return &pageTable[pageNum];
@@ -246,66 +241,65 @@ AddressSpace::LoadPage(unsigned vAddr)
 int
 AddressSpace::WritePagetoSwap()
 {
+    // memoryCoreMap->GetSemaphore()->P();
     MMU *mmu = machine->GetMMU();
     char *mainMemory = mmu->mainMemory;
     unsigned victimIndex = memoryCoreMap->PickVictim();
     CoreItem *victimData = memoryCoreMap->GetItem(victimIndex);
+    unsigned int virtualPage = victimData->virtualPage;
 
-    DEBUG('x',"'SWAP-Write Requiered' VictimData index: %d - VictimPid: %d - IsDirty: %d\n", 
-        victimIndex, victimData->pid, victimData->spaceId->pageTable[victimData->virtualPage].dirty); //BORRAR
+    DEBUG('x',"'SWAP-Write Required' VictimData index: %d - VictimPid: %d - IsDirty: %d\n", 
+        victimIndex, victimData->pid, victimData->spaceId->pageTable[virtualPage].dirty); //BORRAR
 
-    if(victimData->spaceId->pageTable[victimData->virtualPage].dirty) {
-        const char *swapFileName = tableThread[victimData->pid].thread->GetSwapFileName();
+    bool isDirty = victimData->pid == (int)currentThread->GetPid() && victimData->inTlb != -1
+        ? mmu->tlb[victimData->inTlb].dirty
+        : victimData->spaceId->pageTable[virtualPage].dirty;
+    
+    if(isDirty) {
+        char swapFileName[FILENAME_MAX];
+        sprintf(swapFileName, "SWAP.%d", victimData->pid);
         OpenFile *swapFile = fileSystem->Open(swapFileName);
-        int writeSize = swapFile->WriteAt(&mainMemory[victimData->physicalPage * PAGE_SIZE], PAGE_SIZE, victimData->virtualPage * PAGE_SIZE);
+        int writeSize = swapFile->WriteAt(&mainMemory[victimData->physicalPage * PAGE_SIZE], PAGE_SIZE, virtualPage * PAGE_SIZE);
         if(writeSize != PAGE_SIZE) return -1;
         DEBUG('x', "Write page to swap: phyPage -> %d -- swapFile -> %s -- virtPage %d\n"
-                                    ,victimIndex, swapFileName, victimData->virtualPage);
-        victimData->spaceId->pageTable[victimData->virtualPage].virtualPage += victimData->spaceId->GetNumPages();
+                                    ,victimIndex, swapFileName, virtualPage);
+        victimData->spaceId->pageTable[virtualPage].virtualPage += victimData->spaceId->GetNumPages();
         delete swapFile;
     }
-
     else
     {
         DEBUG('x', "No SWAP-Write needed, page in binary file\n"); //BORRAR
-        victimData->spaceId->pageTable[victimData->virtualPage].valid = false;
+        victimData->spaceId->pageTable[virtualPage].valid = false;
     }    
     
 #ifdef USE_TLB
     int tlbVictimIndex = victimData->inTlb;
     if(tlbVictimIndex != -1)
     {
-        victimData->spaceId->SavePageFromTLB(tlbVictimIndex);
+        victimData->spaceId->pageTable[virtualPage].dirty = mmu->tlb[tlbVictimIndex].dirty;
+        victimData->spaceId->pageTable[virtualPage].use   = mmu->tlb[tlbVictimIndex].use;
         mmu->tlb[tlbVictimIndex].valid = false;
     }
 #endif
-
-    victimData->spaceId->pageTable[victimData->virtualPage].physicalPage = 0; //DUDOSO
     
     memoryCoreMap->Clear(victimIndex);
+    // memoryCoreMap->GetSemaphore()->V();
     return victimIndex;
 }
 
 bool
 AddressSpace::LoadPageFromSwap(TranslationEntry *pageTranslation)
 {
-    const char *swapFile = currentThread->GetSwapFileName();
-    if(swapFile == nullptr) return false;
-    DEBUG('x', "Requested Load Page from SWAP: %s | virtual: %d | threadName: %s\n",
-          currentThread->GetSwapFileName(), (pageTranslation->virtualPage - numPages), currentThread->GetName());
+    unsigned int pid = currentThread->GetPid();
+    char swapFile[FILENAME_MAX];
+    sprintf(swapFile, "SWAP.%d", pid);
+    DEBUG('x', "Requested Load Page from SWAP: %s | Virtual page: %d | threadName: %s\n",
+          swapFile, (pageTranslation->virtualPage - numPages), currentThread->GetName());
     char *mainMemory = machine->GetMMU()->mainMemory;
     OpenFile *swap = fileSystem->Open(swapFile);
     if(swap == nullptr) return false;
 
-    //ARMAR UNA LISTA PARA ESTO(tablethread)??
-    unsigned pid = 0;
-    for( ; pid < MAX_SPACE ; pid++) {
-        //DEBUG('x', "FOR RANCIO LOAD PAGE SWAP: pid -> %d\n", pid); //BORRAR
-        if((AddressSpace *)tableThread[pid].space == currentThread->space) {
-            break;
-        }
-    }
-
+    // memoryCoreMap->GetSemaphore()->P();
     int physPage = memoryCoreMap->Add(currentThread->space, (pageTranslation->virtualPage - numPages), pid);
     if(physPage == -1) {
         DEBUG('x', "No space in memory to load page from SWAP\n"); //BORRAR
@@ -319,6 +313,8 @@ AddressSpace::LoadPageFromSwap(TranslationEntry *pageTranslation)
     DEBUG('x', "LOADING Page from SWAP - physical: %d | virtual: %d | threadName: %s\n",
           physPage, (pageTranslation->virtualPage - numPages), currentThread->GetName());
     int sizeRead = swap->ReadAt(&mainMemory[physPage * PAGE_SIZE], PAGE_SIZE, (pageTranslation->virtualPage - numPages) * PAGE_SIZE);
+    // memoryCoreMap->GetSemaphore()->V();
+
     if(sizeRead != PAGE_SIZE) return false;
     pageTranslation->physicalPage = physPage;
     delete swap;
@@ -367,12 +363,12 @@ AddressSpace::InvalidateTlb(Thread *exitThread)
     {
         if(mmu->tlb[i].valid == true) {
             mmu->tlb[i].valid = false;
+#ifdef SWAP
             if(exitThread != nullptr)
             {
-#ifdef SWAP
                 memoryCoreMap->ClearItemTlb(mmu->tlb[i].physicalPage);
-#endif
             }
+#endif
         }
     }
 }
@@ -401,7 +397,7 @@ AddressSpace::SetTlbPage(TranslationEntry *pageTranslation)
         return false;
     }
     TranslationEntry *tlb = machine->GetMMU()->tlb;
-    DEBUG('p', "Set Tlb in page: %d \n", tlbIndex);
+    // DEBUG('p', "Set Tlb in page: %d \n", tlbIndex);
 
     if(tlb[tlbIndex].valid)
     {
@@ -425,11 +421,11 @@ AddressSpace::SetTlbPage(TranslationEntry *pageTranslation)
 void
 AddressSpace::SaveState()
 {
-    TranslationEntry *tlb = machine->GetMMU()->tlb;
     for(unsigned page = 0; page < TLB_SIZE; page++)
     {
         SavePageFromTLB(page);
 #ifdef SWAP
+        TranslationEntry *tlb = machine->GetMMU()->tlb;
         memoryCoreMap->ClearItemTlb(tlb[page].physicalPage);
 #endif
     }

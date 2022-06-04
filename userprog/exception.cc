@@ -65,123 +65,6 @@ void newThread(void *arg)
     }
     machine->Run(); // Jump to the user progam.
 }
-/*
-int
-StartProcess2(const char *filename, bool joinable, int argvAddr, bool isMain)
-{
-    Thread *child;
-
-    if(!isMain)
-    {
-        char *threadName = new char[FILE_NAME_MAX_LEN + 1];
-        sprintf(threadName, "%s", filename);
-        child = new Thread(threadName, joinable, 2);
-    }
-
-    DEBUG('e', "`Open` requested for filename %s.\n", filename);
-    OpenFile *file = fileSystem->Open(filename);
-
-    if(file == nullptr)
-    {
-        machine->WriteRegister(2, -1);
-        DEBUG('e', "File not found\n");
-        return -1;
-    }
-
-    AddressSpace *newSpace = new AddressSpace(file);
-
-    if(!newSpace->IsInitialized())
-    {
-        machine->WriteRegister(2, -1);
-        DEBUG('e', "Error al inicializar el address space\n");
-        return -1;
-    }
-
-    if(!isMain)
-    {
-       child->space = newSpace;
-    }
-    else
-    {
-       currentThread->space = newSpace;
-    }
-
-    /// arreglar que los pid sean unicos
-    int i = 0;
-    if(joinable)
-    {
-        for (; i < MAX_SPACE; i++)
-        {
-            if (tableThread[i].space == nullptr)
-            {
-                tableThread[i].space = (SpaceId *)newSpace;
-                tableThread[i].thread = child;
-                DEBUG('e', "Success in tableThread for %s\n", filename);
-                break;
-            }
-        }
-        
-        if(tableThread[i].space != (SpaceId*)newSpace)
-        {
-            delete newSpace;
-            delete child; 
-            return -1;
-        }
-    }
-    else
-    {
-        for (; i < MAX_SPACE; i++)
-        {
-            if (tableThread[i].space == nullptr)
-            {
-                tableThread[i].space = (SpaceId *)newSpace;
-                tableThread[i].thread = child;
-                DEBUG('e', "Success in tableThread for %s\n", filename);
-                break;
-            }
-        }
-        i = MAX_SPACE + i;
-    }
-
-    char **args = nullptr;
-    if (argvAddr != 0)
-    {
-        args = SaveArgs(argvAddr);
-    }
-    if (!isMain)
-    {
-       child->Fork(newThread, args);
-    }
-    else
-    {
-        newSpace->InitRegisters();  // Set the initial register values.
-        newSpace->RestoreState(nullptr);   // Load page table register.
-        machine->Run();  // Jump to the user progam.
-        ASSERT(false);   // `machine->Run` never returns; the address space
-                     // exits by doing the system call `Exit`.
-    }
-
-#ifdef SWAP
-    char *fileSwap = new char [FILE_NAME_MAX_LEN];
-    sprintf(fileSwap, "SWAP.%d", i);
-    DEBUG('e', "`Create` requested for SWAP File `%s`.\n", fileSwap);
-    if (fileSystem->Create(fileSwap, newSpace->GetSize()))
-    {
-        child->SetSwapFileName(fileSwap);
-        DEBUG('e', "´Create´ SWAP File for spaceId: %p on thread: %s with name :%s ans size : %d\n", 
-            newSpace, child->GetName(), fileSwap, newSpace->GetSize());
-    }
-#endif
-
-    DEBUG('e', "Success in Exec for %s\n", filename);
-#ifndef DEMAND_LOADING
-    delete file;
-#endif
-    return i;
-
-}
-*/
-
 
 /// Run a user program.
 ///
@@ -200,16 +83,14 @@ StartProcess(const char *filename)
     AddressSpace *space = new AddressSpace(executable);
     currentThread->space = space;
 
-    tableThread[0].space = (SpaceId *)space;
-    tableThread[0].thread = currentThread;
-
 #ifdef SWAP
-    char *fileSwap = new char[FILE_NAME_MAX_LEN];
+    char fileSwap[FILE_NAME_MAX_LEN];
     sprintf(fileSwap, "SWAP.%d", 0);
     DEBUG('e', "`Create` requested for SWAP File `%s`.\n", fileSwap);
     if (fileSystem->Create(fileSwap, space->GetSize()))
     {
-        currentThread->SetSwapFileName(fileSwap);
+        tableThread->Add(currentThread);
+        currentThread->SetPid(0);
         DEBUG('e', "´Create´ SWAP File for spaceId: %p on thread: %s with name :%s ans size : %d\n",
               space, currentThread->GetName(), fileSwap, space->GetSize());
     }
@@ -250,10 +131,19 @@ SyscallHandler(ExceptionType _et)
 
     switch (scid) {
 
-        case SC_HALT:
+        case SC_HALT: {
             DEBUG('e', "Shutdown, initiated by user program.\n");
+#ifdef SWAP
+            for (int i = tableThread->GetCurrent() ; i >= 0 ; i--)
+            { 
+                char fileSwap[FILE_NAME_MAX_LEN];
+                sprintf(fileSwap, "SWAP.%d", i);
+                fileSystem->Remove(fileSwap);
+            }
+#endif
             interrupt->Halt();
             break;
+        }
 
         case SC_CREATE: {
             int filenameAddr = machine->ReadRegister(4);
@@ -262,7 +152,7 @@ SyscallHandler(ExceptionType _et)
                 DEBUG('e', "Error: address to filename string is null.\n");
                 break;
             }
-
+            
             char filename[FILE_NAME_MAX_LEN + 1];
             if (!ReadStringFromUser(filenameAddr,
                                     filename, sizeof filename)) {
@@ -284,12 +174,10 @@ SyscallHandler(ExceptionType _et)
         }
 
         case SC_EXEC: {
-            DEBUG('e', "Request for Starting process\n");
+            DEBUG('e', "Request for starting process\n");
             int filenameAddr = machine->ReadRegister(4);
             int joinable = machine->ReadRegister(5);
             int argvAddr = machine->ReadRegister(6);
-            
-
             if (filenameAddr == 0)
             {
                 machine->WriteRegister(2, -1);
@@ -302,19 +190,23 @@ SyscallHandler(ExceptionType _et)
                                     filename, sizeof filename))
             {
                 machine->WriteRegister(2, -1);
-                DEBUG('e', "NOMBRE %s.\n", filename);
                 DEBUG('e', "Error: filename string too long (maximum is %u bytes).\n",
                       FILE_NAME_MAX_LEN);
                 break;
             }
-            /////////// CORTAR ACA Y SEPARAR TODO EN STARTPROCESS2
             
             DEBUG('e', "'EXEC' Request for file `%s`.\n", filename);
-            //int i = StartProcess2(filename, joinable, argvAddr, false);
-            
             char *threadName = new char[FILE_NAME_MAX_LEN + 1];
             sprintf(threadName, "%s", filename);
             Thread *child = new Thread(threadName, joinable, 2);
+            int pid = tableThread->Add(child);
+            if (pid == -1) {
+                delete child;
+                delete threadName;
+                DEBUG('e', "Error: max thread count reached... :( \n");
+                interrupt->Halt();
+            }
+            child->SetPid((unsigned int)pid);
 
             DEBUG('e', "`Open` requested for filename %s.\n", filename);
 
@@ -335,33 +227,6 @@ SyscallHandler(ExceptionType _et)
                 break;
             }
             child->space = newSpace;
-            /// arreglar que los pid sean unicos
-            int i = 0;
-            if(joinable)
-            {
-                for (; i < MAX_SPACE; i++)
-                {
-                    if (tableThread[i].space == nullptr)
-                    {
-                        tableThread[i].space = (SpaceId *)newSpace;
-                        tableThread[i].thread = child;
-                        DEBUG('e', "Success in tableThread for %s\n", filename);
-                        break;
-                    }
-                }
-                
-                if(tableThread[i].space != (SpaceId*)newSpace)
-                {
-                    delete newSpace;
-                    delete child; 
-                    machine->WriteRegister(2, -1);
-                    break;
-                }
-            }
-            else
-            {
-                i = MAX_SPACE + 1;
-            }
 
             char **args = nullptr;
             if (argvAddr != 0)
@@ -371,14 +236,12 @@ SyscallHandler(ExceptionType _et)
             child->Fork(newThread, args);
 
 #ifdef SWAP
-            char *fileSwap = new char [FILE_NAME_MAX_LEN];
-            sprintf(fileSwap, "SWAP.%d", i);
-            //DEBUG('e', "`Create` requested for SWAP File `%s`.\n", fileSwap);
+            char fileSwap[FILE_NAME_MAX_LEN];
+            sprintf(fileSwap, "SWAP.%d", child->GetPid());
             if (fileSystem->Create(fileSwap, newSpace->GetSize()))
             {
-                child->SetSwapFileName(fileSwap);
-                DEBUG('e', "´Create´ SWAP File for spaceId: %p on thread: %s with name :%s ans size : %d\n", 
-                    newSpace, child->GetName(), fileSwap, newSpace->GetSize());
+                DEBUG('e', "´Create´ SWAP File for thread: %s with name :%s\n",
+                        child->GetName(), fileSwap);
             }
 #endif
             DEBUG('e', "Success in Exec for %s\n", filename);
@@ -386,21 +249,23 @@ SyscallHandler(ExceptionType _et)
 #ifndef DEMAND_LOADING
             delete file;
 #endif
-            machine->WriteRegister(2, i);
+            machine->WriteRegister(2, child->GetPid());
             break;
         }
 
         case SC_JOIN: {
-            int index = machine->ReadRegister(4);
-            if(index < MAX_SPACE && index >= 0) {
-                Thread *thread = tableThread[index].thread;
+            int pid = machine->ReadRegister(4);
+            Thread *thread = tableThread->Get(pid);
+            
+            if(thread->IsJoinable()) 
+            {
                 DEBUG('e', "´Join Thread´ called for thread %s\n", thread->GetName());
                 int ret = thread->Join();
                 machine->WriteRegister(2, ret);
-                tableThread[index].space = nullptr;
             }
-            else {
-                DEBUG('e', "´Join process´ called for a process no joineable\n");
+            else
+            {
+                DEBUG('e', "´Join Thread´ called for thread no joineable, thread: %s\n", thread->GetName());
                 machine->WriteRegister(2, -1);
             }
             break;
@@ -435,12 +300,6 @@ SyscallHandler(ExceptionType _et)
         }
 
         case SC_EXIT: {
-            ////////////////////
-            //Thread *nextThread = scheduler->FindNextToRun();
-            //if (nextThread == nullptr)
-              //  interrupt->Halt();
-            //else
-            ////////////////////////
             currentThread->Finish(machine->ReadRegister(4));
             break;
         }
@@ -498,7 +357,7 @@ SyscallHandler(ExceptionType _et)
             bool success = currentThread->DeleteOpenFile(fid);
             if(!success)
             {
-                DEBUG('e', "`Close` requested for id failed %u.\n", fid);
+                DEBUG('e', "`Close` requested for id %u failed.\n", fid);
                 machine->WriteRegister(2, -1);
                 break;
             }
@@ -611,12 +470,13 @@ PageFaultHandler(ExceptionType _et)
         DEBUG('e', "'Demand loading required' vAddr: %d vPage: %d\n", badVAddr, numPage);
         pageTranslation = currentThread->space->LoadPage(badVAddr);
     }
-    else
-        //DEBUG('e', "Translation valid found for page %d in pageTable\n",numPage);
+    else {
+        // DEBUG('e', "Translation valid found for page %d in pageTable\n",numPage);
+    }
 #endif
 
 #ifdef SWAP
-    if (pageTranslation->virtualPage >= currentThread->space->GetNumPages())
+    if (pageTranslation->virtualPage >= currentThread->space->GetNumPages() && pageTranslation->valid)
     {   
         DEBUG('e', "Page in SWAP!\n");
         bool valid = currentThread->space->LoadPageFromSwap(pageTranslation);
@@ -628,8 +488,8 @@ PageFaultHandler(ExceptionType _et)
 
     //currentThread->space->PrintCoreMap(); //BORRAR
     //currentThread->space->PrintPageTable(); //BORRAR
-    //MMU *mem = machine->GetMMU(); //BORRAR
-    //mem->PrintTLB(); //BORRAR
+    // MMU *mem = machine->GetMMU(); //BORRAR
+    // mem->PrintTLB(); //BORRAR
 }
 
 static void
@@ -638,8 +498,8 @@ ReadOnlyExceptionHandler(ExceptionType _et)
     unsigned badVAddr = machine->ReadRegister(BAD_VADDR_REG);
     unsigned int numPage = badVAddr / PAGE_SIZE;
     DEBUG('e', "'Page 'RO' exception' Virtual address: %d -- Page: %d\n", badVAddr, numPage);
-    /// TODO:
-    // que hacer???
+    /// TODO: que hacer???
+    // 
     //
     ASSERT(false);
 }

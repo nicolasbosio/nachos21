@@ -18,10 +18,10 @@ main(int argc, char **argv)
 {
     if (argc > 0) {
         strput("Hello filetest2..");
+        Create("test2.txt");
+        OpenFileId o = Open("test2.txt");
+        Write(argv[0],strlen(argv[0]),o);
+        Close(o);
     }
-    Create("test2.txt");
-    OpenFileId o = Open("test2.txt");
-    Write(argv[0],strlen(argv[0]),o);
-    Close(o);
 }
 

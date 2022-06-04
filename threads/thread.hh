@@ -147,11 +147,11 @@ public:
 
     void Print() const;
 
-#ifdef SWAP
-    void SetSwapFileName(const char* swapFile);
+    void SetPid(unsigned int newPid);
 
-    const char* GetSwapFileName();
-#endif
+    bool IsJoinable();
+
+    unsigned int GetPid();
 
 private:
     // Some of the private data for this class is listed above.
@@ -175,9 +175,7 @@ private:
     unsigned int priority;
     unsigned int oldPriority;
     int returnStatus;
-#ifdef SWAP
-    const char* swapFileName;
-#endif
+    unsigned int pid;
 
 #ifdef USER_PROGRAM
     /// User-level CPU register state.

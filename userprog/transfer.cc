@@ -41,6 +41,7 @@ bool ReadStringFromUser(int userAddress, char *outString,
         count++;
 
         bool valid = false;
+        // TODO: porque menor a 5???????
         for(int i = 0 ; i < 5 && !valid ; i++){
             valid = machine->ReadMem(userAddress, 1, &temp);
         }

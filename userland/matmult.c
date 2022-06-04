@@ -11,7 +11,7 @@
 
 
 /// Sum total of the arrays does not fit in physical memory.
-#define DIM  20
+#define DIM  28
 
 static int A[DIM][DIM];
 static int B[DIM][DIM];

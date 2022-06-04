@@ -9,6 +9,7 @@
 
 #include "userprog/address_space.hh"
 #include "lib/bitmap.hh"
+#include "threads/semaphore.hh"
 #ifndef NACHOS_COREMAP__HH
 #define NACHOS_COREMAP__HH
 
@@ -33,7 +34,7 @@ public:
     int physicalPage;
 
     ///
-    int inTlb; 
+    int inTlb;
 
 private:
 };
@@ -69,9 +70,13 @@ public:
     ///
     void ClearItemTlb(unsigned index);
 
+    ///
+    Semaphore* GetSemaphore();
+
 private:
     CoreItem *table;
     Bitmap *map;
+    Semaphore *sem;
 };
 
 #endif

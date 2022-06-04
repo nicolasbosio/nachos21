@@ -38,19 +38,12 @@ extern Timer *timer;                 ///< The hardware alarm clock.
 #include "lib/bitmap.hh"
 #include "lib/table.hh"
 
-#define MAX_SPACE 10
 typedef int SpaceId;
-
-typedef struct  
-{
-    SpaceId *space;
-    Thread *thread;
-} ListTS;
-
-typedef ListTS* ListThreadSpace;
 
 extern Machine *machine;  // User program memory and registers.
 extern SynchConsole *synchConsole;
+
+extern Table<Thread*> *tableThread;
 
 #ifndef SWAP
 extern Bitmap *memoryMap;
@@ -58,8 +51,6 @@ extern Bitmap *memoryMap;
 #include "lib/coremap.hh"
 extern CoreMap *memoryCoreMap;
 #endif
-
-extern ListThreadSpace tableThread;
 
 #endif
 

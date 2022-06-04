@@ -80,13 +80,16 @@ Thread::~Thread()
     if(scheduler->IsZombie(this)) {
         scheduler->DeleteZombie(this);
     }
+    delete name;
 #ifdef USER_PROGRAM
     delete this->space;
     delete this->fileTable;
+    tableThread->Remove(this->pid);
 #endif
 #ifdef SWAP
+    char swapFileName[FILENAME_MAX];
+    sprintf(swapFileName, "SWAP.%d", this->pid);
     fileSystem->Remove(swapFileName);
-    delete swapFileName;
 #endif
 }
 
@@ -183,14 +186,20 @@ Thread::Print() const
     printf("%s, ", name);
 }
 
-#ifdef SWAP
 void 
-Thread::SetSwapFileName(const char* swapFile) {
-    swapFileName = swapFile;
+Thread::SetPid(unsigned int newPid) {
+    pid = newPid;
 }
 
-const char* Thread::GetSwapFileName() { return swapFileName; }
-#endif
+unsigned int 
+Thread::GetPid() {
+    return pid;
+}
+
+bool 
+Thread::IsJoinable() {
+    return !selfDestruct;
+}
 
 /// Called by `ThreadRoot` when a thread is done executing the forked
 /// procedure.

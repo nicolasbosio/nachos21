@@ -67,6 +67,7 @@ Semaphore::P()
         queue->Append(currentThread);  // So go to sleep.
         currentThread->Sleep();
     }
+    // DEBUG('s',"Semaphore taked\n");
     value--;  // Semaphore available, consume its value.
 
     interrupt->SetLevel(oldLevel);  // Re-enable interrupts.
@@ -82,6 +83,7 @@ Semaphore::V()
 {
     IntStatus oldLevel = interrupt->SetLevel(INT_OFF);
 
+    // DEBUG('s',"Semaphore released\n");
     Thread *thread = queue->Pop();
     if (thread != nullptr) {
         // Make thread ready, consuming the `V` immediately.

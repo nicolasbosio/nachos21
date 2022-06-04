@@ -13,6 +13,7 @@
 #include "userprog/debugger.hh"
 #include "userprog/exception.hh"
 #include "machine/mmu.hh"
+#include "lib/table.hh"
 #endif
 
 #include <stdlib.h>
@@ -45,13 +46,13 @@ SynchDisk *synchDisk;
 
 #ifdef USER_PROGRAM  // Requires either *FILESYS* or *FILESYS_STUB*.
 Machine *machine;    ///< User program memory and registers.
+Table<Thread*> *tableThread;
 #ifndef SWAP
 Bitmap *memoryMap;      ///
 #else
 CoreMap *memoryCoreMap;
 #endif
 SynchConsole *synchConsole;
-ListThreadSpace tableThread;
 #endif
 
 #ifdef NETWORK
@@ -237,17 +238,13 @@ Initialize(int argc, char **argv)
     Debugger *d = debugUserProg ? new Debugger : nullptr;
     machine = new Machine(d);  // This must come first.
     synchConsole = new SynchConsole(nullptr,nullptr);
+    tableThread = new Table<Thread*>();
 #ifndef SWAP
     memoryMap = new Bitmap(NUM_PHYS_PAGES);
 #else
     memoryCoreMap = new CoreMap(NUM_PHYS_PAGES);
 #endif
-    
-    tableThread = static_cast<ListThreadSpace>(malloc(sizeof(ListThreadSpace) * MAX_SPACE));
-    for (int i = 0 ; i < MAX_SPACE ; i++) {
-        tableThread[i].space = nullptr;
-        //tableThread[i].thread = nullptr; // esto rompe nose porque
-    }
+
 #if false
     if(!randomYield)
         timer = new Timer(TimerInterruptHandler, 0, false);
@@ -283,14 +280,14 @@ Cleanup()
 
 #ifdef USER_PROGRAM
     delete machine;
-    //delete synchConsole; //PROBAR: ACT esto tira un doble free hay que revisar donde se borra
+    delete tableThread;
+    //delete synchConsole; //TODO: ACT esto tira un doble free hay que revisar donde se borra
     
 #ifndef SWAP
     delete memoryMap;
 #else
     delete memoryCoreMap;
 #endif
-    delete tableThread;
 #endif
 
 #ifdef FILESYS_NEEDED
