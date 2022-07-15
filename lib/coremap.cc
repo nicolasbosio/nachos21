@@ -12,18 +12,21 @@ CoreMap::CoreMap(unsigned size)
 {
     table = new CoreItem[size];
     map = new Bitmap(size);
-    sem = new Semaphore("Semaforo Coremap", 1);
+    memLock = new Lock("Lock Coremap");
     for(unsigned i = 0; i < size; i++)
     {
         Clear(i);
     }
+#if PRPOLICY_FIFO
+    fifoList = new List<unsigned>();
+#endif
 }
 
 CoreMap::~CoreMap()
 {
     delete table;
     delete map;
-    delete sem;
+    delete memLock;
 }
 
 ///
@@ -37,6 +40,7 @@ CoreMap::Clear(unsigned which)
     table[which].physicalPage = -1;
     table[which].virtualPage = -1;
     table[which].inTlb = -1;
+    //table[which].busy = false;
 }
 
 ///
@@ -51,9 +55,32 @@ CoreMap::Add(AddressSpace *space, unsigned vPage, unsigned pid)
         table[index].physicalPage = index;
         table[index].pid = pid;
         table[index].inTlb = -1;
+        table[index].busy = true;
+#if PRPOLICY_FIFO
+        fifoList.Append(index);
+#endif
     }
     return index;
 }
+
+///
+int
+CoreMap::AddVictim(AddressSpace *space, unsigned vPage, unsigned pid, unsigned victim)
+{
+    // ASSERT(!map->Test(victim));
+    // map->Mark(victim);
+    if (victim >= 0 && victim < (int)NUM_PHYS_PAGES) {
+        table[victim].valid = true;
+        table[victim].spaceId = space;
+        table[victim].virtualPage = vPage;
+        table[victim].physicalPage = victim;
+        table[victim].pid = pid;
+        table[victim].inTlb = -1;
+        table[victim].busy = true;
+    }
+    return victim;
+}
+
 
 ///
 unsigned
@@ -73,7 +100,21 @@ CoreMap::GetItem(unsigned index)
 unsigned 
 CoreMap::PickVictim()
 {
-    return (unsigned)SystemDep::Random() % NUM_PHYS_PAGES;
+    unsigned phyPage;
+#if PRPOLICY_FIFO
+    phyPage = fifoList.Pop();
+#elif defined(PRPOLICY_LRU)
+    phyPage = 0;
+#else
+    do
+    {
+        phyPage = (unsigned)SystemDep::Random() % NUM_PHYS_PAGES;
+        DEBUG('s', "PICK\n"); //BORRAR
+    } while (table[phyPage].busy);
+    ASSERT(!table[phyPage].busy); // BORRAR
+    table[phyPage].busy = true;
+#endif
+    return phyPage;
 }
 
 void
@@ -88,8 +129,18 @@ CoreMap::ClearItemTlb(unsigned index)
     table[index].inTlb = -1;
 }
 
-Semaphore*
-CoreMap::GetSemaphore()
+Lock*
+CoreMap::GetLock()
 {
-    return sem;
+    return memLock;
+}
+
+void 
+CoreMap::unlockPage(unsigned index)
+{
+    if (table[index].busy == true) {
+        table[index].busy = false;
+    }
+    else
+        ASSERT(false);
 }

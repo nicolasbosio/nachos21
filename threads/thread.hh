@@ -175,7 +175,7 @@ private:
     unsigned int priority;
     unsigned int oldPriority;
     int returnStatus;
-    unsigned int pid;
+    unsigned pid;
 
 #ifdef USER_PROGRAM
     /// User-level CPU register state.

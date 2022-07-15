@@ -77,19 +77,28 @@ Thread::~Thread()
         SystemDep::DeallocBoundedArray((char *) stack,
                                        STACK_SIZE * sizeof *stack);
     }
+    printf("El hilo %s es joineable %d\n", this->GetName(), this->IsJoinable());
     if(scheduler->IsZombie(this)) {
+        printf("Deleting %s on zombie list\n", this->GetName());
         scheduler->DeleteZombie(this);
     }
-    delete name;
+    
 #ifdef USER_PROGRAM
     delete this->space;
     delete this->fileTable;
-    tableThread->Remove(this->pid);
+    ASSERT(tableThread->Test(this->GetPid()));
+    printf("PRE CLEAR TABLE \n");
+    tableThread->Print();
+    tableThread->Clear(this->GetPid());
+    printf("Deleting %s on bitmap, pos: %d\n", this->GetName(), this->GetPid());
+    arrayThread[this->pid] = nullptr;
 #endif
+    delete name;
 #ifdef SWAP
     char swapFileName[FILENAME_MAX];
     sprintf(swapFileName, "SWAP.%d", this->pid);
     fileSystem->Remove(swapFileName);
+    printf("FIN DESTRUCTOR THREAD\n");
 #endif
 }
 
@@ -223,7 +232,7 @@ Thread::Finish(int retVal)
     if(selfDestruct)
         threadToBeDestroyed = currentThread;
     else {
-        threadToBeDestroyed = nullptr;
+        threadToBeDestroyed = nullptr; // OJO
         scheduler->MakeZombie(currentThread);
     }
 
@@ -253,7 +262,7 @@ Thread::Yield()
 
     ASSERT(this == currentThread);
 
-    DEBUG('t', "Yielding thread \"%s\"\n", GetName());
+    DEBUG('t', "Yielding thread \"%s\" -- TICK: %u \n", GetName(), stats->totalTicks);
 
     Thread *nextThread = scheduler->FindNextToRun();
     if (nextThread != nullptr) {

@@ -125,8 +125,8 @@ Scheduler::Run(Thread *nextThread)
     currentThread = nextThread;  // Switch to the next thread.
     currentThread->SetStatus(RUNNING);  // `nextThread` is now running.
 
-    DEBUG('t', "Switching from thread \"%s\" to thread \"%s\"\n",
-          oldThread->GetName(), nextThread->GetName());
+    DEBUG('t', "Switching from thread \"%s\" to thread \"%s\" -- TICK: %u\n",
+          oldThread->GetName(), nextThread->GetName(), stats->totalTicks);
 
     // This is a machine-dependent assembly language routine defined in
     // `switch.s`.  You may have to think a bit to figure out what happens
@@ -135,7 +135,7 @@ Scheduler::Run(Thread *nextThread)
 
     SWITCH(oldThread, nextThread);
 
-    DEBUG('t', "Now in thread \"%s\"\n", currentThread->GetName());
+    DEBUG('t', "Now in thread \"%s\" -- TICK: %u\n", currentThread->GetName(), stats->totalTicks);
 
     // If the old thread gave up the processor because it was finishing, we
     // need to delete its carcass.  Note we cannot delete the thread before

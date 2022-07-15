@@ -46,7 +46,8 @@ SynchDisk *synchDisk;
 
 #ifdef USER_PROGRAM  // Requires either *FILESYS* or *FILESYS_STUB*.
 Machine *machine;    ///< User program memory and registers.
-Table<Thread*> *tableThread;
+Bitmap *tableThread;
+Thread** arrayThread;
 #ifndef SWAP
 Bitmap *memoryMap;      ///
 #else
@@ -170,7 +171,8 @@ Initialize(int argc, char **argv)
             argCount = 2;
         } else if (!strcmp(*argv, "-rs")) {
             ASSERT(argc > 1);
-            SystemDep::RandomInit(atoi(*(argv + 1)));
+            // SystemDep::RandomInit(atoi(*(argv + 1)));
+            SystemDep::RandomInit(0);
               // Initialize pseudo-random number generator.
             randomYield = true;
             argCount = 2;
@@ -238,7 +240,12 @@ Initialize(int argc, char **argv)
     Debugger *d = debugUserProg ? new Debugger : nullptr;
     machine = new Machine(d);  // This must come first.
     synchConsole = new SynchConsole(nullptr,nullptr);
-    tableThread = new Table<Thread*>();
+    tableThread = new Bitmap(MAX_CONCURRENT_THREADS);
+    arrayThread = new Thread*[MAX_CONCURRENT_THREADS];
+    for (int i = 0 ; i < MAX_CONCURRENT_THREADS ; i++)
+        arrayThread[i] = nullptr;
+    
+
 #ifndef SWAP
     memoryMap = new Bitmap(NUM_PHYS_PAGES);
 #else

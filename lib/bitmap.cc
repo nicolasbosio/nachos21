@@ -23,9 +23,11 @@ Bitmap::Bitmap(unsigned nitems)
     numBits  = nitems;
     numWords = DivRoundUp(numBits, BITS_IN_WORD);
     map      = new unsigned [numWords];
+    blockTable = new Lock("Bitmap lock");
     for (unsigned i = 0; i < numBits; i++) {
         Clear(i);
     }
+    
 }
 
 /// De-allocate a bitmap.
@@ -50,8 +52,10 @@ Bitmap::Mark(unsigned which)
 void
 Bitmap::Clear(unsigned which)
 {
+    blockTable->Acquire();
     ASSERT(which < numBits);
     map[which / BITS_IN_WORD] &= ~(1 << which % BITS_IN_WORD);
+    blockTable->Release();
 }
 
 /// Return true if the “nth” bit is set.

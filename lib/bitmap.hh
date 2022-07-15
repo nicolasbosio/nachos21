@@ -20,6 +20,7 @@
 
 #include "utility.hh"
 #include "filesys/open_file.hh"
+#include "lock.hh"
 
 
 /// A “bitmap” -- an array of bits, each of which can be independently set,
@@ -84,6 +85,8 @@ private:
 
     /// Bit storage.
     unsigned *map;
+
+    Lock *blockTable;
 
 };
 

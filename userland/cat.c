@@ -31,6 +31,7 @@ int main(int argc, char **argv)
 
     strput("");
     Close(srcFile);
+    strput("PRE RETURN\n");
     return 0;
 }
 

@@ -9,7 +9,7 @@
 
 #include "userprog/address_space.hh"
 #include "lib/bitmap.hh"
-#include "threads/semaphore.hh"
+#include "threads/lock.hh"
 #ifndef NACHOS_COREMAP__HH
 #define NACHOS_COREMAP__HH
 
@@ -36,6 +36,14 @@ public:
     ///
     int inTlb;
 
+    ///
+    bool busy;
+
+#if PRPOLICY_FIFO
+    List<unsigned> fifoList;
+#endif
+
+
 private:
 };
 
@@ -56,6 +64,9 @@ public:
     int Add(AddressSpace *space, unsigned vPage, unsigned pid);
 
     ///
+    int AddVictim(AddressSpace *space, unsigned vPage, unsigned pid, unsigned victim);
+
+    ///
     unsigned CountClear();
 
     ///
@@ -71,12 +82,15 @@ public:
     void ClearItemTlb(unsigned index);
 
     ///
-    Semaphore* GetSemaphore();
+    Lock* GetLock();
+
+    ///
+    void unlockPage(unsigned index);
 
 private:
     CoreItem *table;
     Bitmap *map;
-    Semaphore *sem;
+    Lock *memLock;
 };
 
 #endif

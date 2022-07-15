@@ -172,36 +172,42 @@ AddressSpace::LoadPage(unsigned vAddr)
     vAddr = pageNum * PAGE_SIZE;
     DEBUG('p', "'Load Page Required' -> vPage: %d -- vAddr: %d\n",
           pageNum, vAddr);
-    bool init = false;
     char *mainMemory = machine->GetMMU()->mainMemory;
 
-    // memoryCoreMap->GetSemaphore()->P();
+    memoryCoreMap->GetLock()->Acquire();
+    DEBUG('s', "Lock Acquire\n"); //BORRAR
 #ifndef SWAP
     int physPage = memoryMap->Find();
 #else
     int physPage = memoryCoreMap->Add(this, pageNum, currentThread->GetPid());
-
+    DEBUG('s', "Lock Release\n"); //BORRAR
+    memoryCoreMap->GetLock()->Release();
     if(physPage == -1) {
         DEBUG('p', "No space in memory to load page from binary file\n"); //BORRAR
         int victim = WritePagetoSwap();
-        physPage = memoryCoreMap->Add(this, pageNum, currentThread->GetPid());
+        memoryCoreMap->GetLock()->Acquire();
+        DEBUG('s', "Lock Acquire\n"); //BORRAR
+        physPage = memoryCoreMap->AddVictim(this, pageNum, currentThread->GetPid(), victim);
+        DEBUG('s', "Lock Release\n"); //BORRAR
+        memoryCoreMap->GetLock()->Release();
+        if(victim != physPage)
+            printf("Victim -> %d :: PhysPage -> %d\n", victim, physPage);
         ASSERT(victim == physPage);
     }
-
 #endif
-
+   
+    
     ASSERT(physPage != -1);
     pageTable[pageNum].virtualPage = pageNum;
     pageTable[pageNum].physicalPage = physPage;
     pageTable[pageNum].valid = true;
-    memoryCoreMap->ClearItemTlb(physPage);
+    //memoryCoreMap->ClearItemTlb(physPage); // Ojo con esto ya se hace en WritePagetoSwap
     
     if (vAddr >= (codeSize + initDataSize))
     {
         DEBUG('p', "'Load Stack block' -> vPage: %d -- phyPage %d\n", 
             pageTable[pageNum].virtualPage, pageTable[pageNum].physicalPage);
         memset(&mainMemory[pageTable[pageNum].physicalPage * PAGE_SIZE], 0, PAGE_SIZE);
-        init = true;
     }
     else if (vAddr < codeSize)
     {
@@ -213,7 +219,6 @@ AddressSpace::LoadPage(unsigned vAddr)
 
         pageTable[pageNum].readOnly = true;
         exe.ReadCodeBlock(&mainMemory[pageTable[pageNum].physicalPage * PAGE_SIZE], PAGE_SIZE, offset);
-        init = true;
     }
     else
     {
@@ -224,11 +229,10 @@ AddressSpace::LoadPage(unsigned vAddr)
               pageTable[pageNum].virtualPage, pageTable[pageNum].physicalPage, PAGE_SIZE, vAddr);
 
         exe.ReadDataBlock(&mainMemory[pageTable[pageNum].physicalPage * PAGE_SIZE], readSize, (offset - codeSize));
-        init = true;
     }
-    // memoryCoreMap->GetSemaphore()->V();
-    ASSERT(init);
-
+#ifdef SWAP
+    memoryCoreMap->unlockPage(physPage);
+#endif
     return &pageTable[pageNum];
 }
 #endif
@@ -241,10 +245,14 @@ AddressSpace::LoadPage(unsigned vAddr)
 int
 AddressSpace::WritePagetoSwap()
 {
-    // memoryCoreMap->GetSemaphore()->P();
+    
     MMU *mmu = machine->GetMMU();
     char *mainMemory = mmu->mainMemory;
+    memoryCoreMap->GetLock()->Acquire();
+    DEBUG('s', "Lock Acquire\n"); //BORRAR
     unsigned victimIndex = memoryCoreMap->PickVictim();
+    DEBUG('s', "Lock Release\n"); //BORRAR
+    memoryCoreMap->GetLock()->Release();
     CoreItem *victimData = memoryCoreMap->GetItem(victimIndex);
     unsigned int virtualPage = victimData->virtualPage;
 
@@ -282,8 +290,7 @@ AddressSpace::WritePagetoSwap()
     }
 #endif
     
-    memoryCoreMap->Clear(victimIndex);
-    // memoryCoreMap->GetSemaphore()->V();
+    //memoryCoreMap->Clear(victimIndex);
     return victimIndex;
 }
 
@@ -299,26 +306,37 @@ AddressSpace::LoadPageFromSwap(TranslationEntry *pageTranslation)
     OpenFile *swap = fileSystem->Open(swapFile);
     if(swap == nullptr) return false;
 
-    // memoryCoreMap->GetSemaphore()->P();
+    memoryCoreMap->GetLock()->Acquire();
+    DEBUG('s', "Lock Acquire\n"); //BORRAR
     int physPage = memoryCoreMap->Add(currentThread->space, (pageTranslation->virtualPage - numPages), pid);
+    DEBUG('s', "Lock Release\n"); //BORRAR
+    memoryCoreMap->GetLock()->Release();
+
     if(physPage == -1) {
         DEBUG('x', "No space in memory to load page from SWAP\n"); //BORRAR
+
         int victim = WritePagetoSwap();
         //Si ESTO NO ES ATOMICO ACA SE PUEDE ROMPER ALGO SI EN EL MEDIO DEL PROCESO SE CEDE EL CONTROL
         //Y EL OTRO HILO TAMB SWAPEA PAGINAS VER DE PONER SEMAFOROS PARA EVITAR PROBLEMAS
-        physPage = memoryCoreMap->Add(currentThread->space, (pageTranslation->virtualPage - numPages), pid);
+        memoryCoreMap->GetLock()->Acquire();
+        DEBUG('s', "Lock Acquire\n"); //BORRAR
+        physPage = memoryCoreMap->AddVictim(currentThread->space, (pageTranslation->virtualPage - numPages), pid, victim);
+        DEBUG('s', "Lock Release\n"); //BORRAR
+        memoryCoreMap->GetLock()->Release();
+        if(victim != physPage)
+            printf("Victim -> %d :: PhysPage -> %d\n", victim, physPage);
         ASSERT(victim == physPage);
     }
     
     DEBUG('x', "LOADING Page from SWAP - physical: %d | virtual: %d | threadName: %s\n",
           physPage, (pageTranslation->virtualPage - numPages), currentThread->GetName());
     int sizeRead = swap->ReadAt(&mainMemory[physPage * PAGE_SIZE], PAGE_SIZE, (pageTranslation->virtualPage - numPages) * PAGE_SIZE);
-    // memoryCoreMap->GetSemaphore()->V();
 
     if(sizeRead != PAGE_SIZE) return false;
     pageTranslation->physicalPage = physPage;
     delete swap;
     pageTranslation->virtualPage -= numPages;
+    memoryCoreMap->unlockPage(physPage);
     return true;
 }
 

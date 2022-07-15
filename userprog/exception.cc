@@ -89,8 +89,9 @@ StartProcess(const char *filename)
     DEBUG('e', "`Create` requested for SWAP File `%s`.\n", fileSwap);
     if (fileSystem->Create(fileSwap, space->GetSize()))
     {
-        tableThread->Add(currentThread);
         currentThread->SetPid(0);
+        tableThread->Mark(currentThread->GetPid());
+        arrayThread[currentThread->GetPid()] = currentThread;
         DEBUG('e', "´Create´ SWAP File for spaceId: %p on thread: %s with name :%s ans size : %d\n",
               space, currentThread->GetName(), fileSwap, space->GetSize());
     }
@@ -134,7 +135,7 @@ SyscallHandler(ExceptionType _et)
         case SC_HALT: {
             DEBUG('e', "Shutdown, initiated by user program.\n");
 #ifdef SWAP
-            for (int i = tableThread->GetCurrent() ; i >= 0 ; i--)
+            for (int i = MAX_CONCURRENT_THREADS ; i >= 0 ; i--)
             { 
                 char fileSwap[FILE_NAME_MAX_LEN];
                 sprintf(fileSwap, "SWAP.%d", i);
@@ -194,30 +195,29 @@ SyscallHandler(ExceptionType _et)
                       FILE_NAME_MAX_LEN);
                 break;
             }
-            
-            DEBUG('e', "'EXEC' Request for file `%s`.\n", filename);
-            char *threadName = new char[FILE_NAME_MAX_LEN + 1];
-            sprintf(threadName, "%s", filename);
-            Thread *child = new Thread(threadName, joinable, 2);
-            int pid = tableThread->Add(child);
-            if (pid == -1) {
-                delete child;
-                delete threadName;
-                DEBUG('e', "Error: max thread count reached... :( \n");
-                interrupt->Halt();
-            }
-            child->SetPid((unsigned int)pid);
 
             DEBUG('e', "`Open` requested for filename %s.\n", filename);
-
             OpenFile *file = fileSystem->Open(filename);
-
             if(file == nullptr)
             {
                 machine->WriteRegister(2, -1);
                 DEBUG('e', "File not found\n");
                 break;
             }
+
+            DEBUG('e', "'EXEC' Request for file `%s`.\n", filename);
+            int pid = tableThread->Find();
+            if (pid == -1) {
+                DEBUG('e', "Error: max thread count reached... :( \n");
+                interrupt->Halt();
+                return;
+            }
+            
+            char *threadName = new char[FILE_NAME_MAX_LEN + 4];
+            sprintf(threadName, "%s-%d", filename, pid);
+            Thread *child = new Thread(threadName, joinable, 2);
+            child->SetPid((unsigned int)pid);
+            arrayThread[child->GetPid()] = child;
 
             AddressSpace *newSpace = new AddressSpace(file);
             if(!newSpace->IsInitialized())
@@ -255,7 +255,7 @@ SyscallHandler(ExceptionType _et)
 
         case SC_JOIN: {
             int pid = machine->ReadRegister(4);
-            Thread *thread = tableThread->Get(pid);
+            Thread *thread = arrayThread[pid];
             
             if(thread->IsJoinable()) 
             {
@@ -443,7 +443,8 @@ SyscallHandler(ExceptionType _et)
         case SC_STATS:
         {
             DEBUG('e', "Scheduler stats requested.\n");
-            scheduler->Print();
+            //scheduler->Print();
+            tableThread->Print();
             break;
         }
 

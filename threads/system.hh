@@ -17,6 +17,7 @@
 #include "userprog/synch_console.hh"
 
 
+#define MAX_CONCURRENT_THREADS   10
 /// Initialization and cleanup routines.
 
 // Initialization, called before anything else.
@@ -43,7 +44,8 @@ typedef int SpaceId;
 extern Machine *machine;  // User program memory and registers.
 extern SynchConsole *synchConsole;
 
-extern Table<Thread*> *tableThread;
+extern Bitmap *tableThread;
+extern Thread** arrayThread;
 
 #ifndef SWAP
 extern Bitmap *memoryMap;

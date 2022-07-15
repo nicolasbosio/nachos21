@@ -93,8 +93,9 @@ main(void)
     const OpenFileId OUTPUT = CONSOLE_OUTPUT;
     char             line[MAX_LINE_SIZE];
     char            *argv[MAX_ARG_COUNT];
-
+    int noex = 1;
     for (;;) {
+        Stats();
         WritePrompt(OUTPUT);
         const unsigned lineSize = ReadLine(line, MAX_LINE_SIZE, INPUT);
         if (lineSize == 0) {
@@ -105,6 +106,9 @@ main(void)
         char *ptr = line;
         if (line[0] == '&')
         {
+            Exec("matmult-short", 0, NULL);
+            Join(Exec("matmult", 1, NULL));
+            noex = 0;
             ptr = line + 1;
             joinable = 0;
         }
@@ -117,17 +121,20 @@ main(void)
         // Comment and uncomment according to whether command line arguments
         // are given in the system call or not.
         
-        SpaceId newProc;
+        SpaceId newProc = -1;
         if(strcmp(ptr, ":q"))
         {
             Halt();
         }
 
-        if (argv[0] == NULL)
-            newProc = Exec(ptr, joinable, NULL);
+        if (noex) {
+            if (argv[0] == NULL)
+                newProc = Exec(ptr, joinable, NULL);
+            else
+                newProc = Exec(ptr, joinable, argv);
+        }
         else
-            newProc = Exec(ptr, joinable, argv);
-
+            noex = 1;
         // TODO: check for errors when calling `Exec`; this depends on how
         //       errors are reported.
         if(joinable && newProc != -1)
