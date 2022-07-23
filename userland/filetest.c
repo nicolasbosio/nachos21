@@ -23,23 +23,20 @@ main(void)
     char *cadena = "Hello world\n";
     Write(cadena, strlen(cadena), o);
     Close(o);
-    //Stats();
     int i = Join(proc1);
     if (i != -1)
         strput("Retorno bien el Join 1\n");
 
     char *args2[] = {"HOLAcm72\n"};
-    Stats();
     SpaceId proc2 = Exec("../userland/filetest2", 1, args2);
     char *cadena2 = "Hello world2\n";
     strput(cadena2);
-    //Stats();
     int i2 = Join(proc2);
     if (i2 != -1) {
         char *msg = "Retorno bien el Join 2\n";
         Write(msg,strlen(msg),1);
     }
-    strput("FIN");
+    strput("FIN FILETEST");
     return 0;
 }
 

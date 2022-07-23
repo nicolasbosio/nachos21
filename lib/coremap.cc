@@ -7,6 +7,7 @@
 #include "machine/mmu.hh"
 
 #include <stdlib.h>
+#include <stdio.h>
 
 CoreMap::CoreMap(unsigned size)
 {
@@ -17,8 +18,8 @@ CoreMap::CoreMap(unsigned size)
     {
         Clear(i);
     }
-#if PRPOLICY_FIFO
-    fifoList = new List<unsigned>();
+#ifdef PRPOLICY_FIFO
+    fifoList = new List<unsigned>;
 #endif
 }
 
@@ -27,6 +28,9 @@ CoreMap::~CoreMap()
     delete table;
     delete map;
     delete memLock;
+#ifdef PRPOLICY_FIFO
+    delete fifoList;
+#endif /* PRPOLICY_FIFO */
 }
 
 ///
@@ -56,8 +60,8 @@ CoreMap::Add(AddressSpace *space, unsigned vPage, unsigned pid)
         table[index].pid = pid;
         table[index].inTlb = -1;
         table[index].busy = true;
-#if PRPOLICY_FIFO
-        fifoList.Append(index);
+#ifdef PRPOLICY_FIFO
+        fifoList->Append(index);
 #endif
     }
     return index;
@@ -77,6 +81,9 @@ CoreMap::AddVictim(AddressSpace *space, unsigned vPage, unsigned pid, unsigned v
         table[victim].pid = pid;
         table[victim].inTlb = -1;
         table[victim].busy = true;
+#ifdef PRPOLICY_FIFO
+        fifoList->Append(victim);
+#endif
     }
     return victim;
 }
@@ -101,21 +108,19 @@ unsigned
 CoreMap::PickVictim()
 {
     unsigned phyPage;
-#if PRPOLICY_FIFO
-    phyPage = fifoList.Pop();
+#ifdef PRPOLICY_FIFO
+    phyPage = fifoList->Pop();
 #elif defined(PRPOLICY_LRU)
     phyPage = 0;
 #else
     do
     {
         phyPage = (unsigned)SystemDep::Random() % NUM_PHYS_PAGES;
-        DEBUG('s', "PICK\n"); //BORRAR
     } while (table[phyPage].busy);
-    ASSERT(!table[phyPage].busy); // BORRAR
     table[phyPage].busy = true;
 #endif
     return phyPage;
-}
+} 
 
 void
 CoreMap::SetItemTlb(unsigned index, unsigned tlbPos)
@@ -143,4 +148,17 @@ CoreMap::unlockPage(unsigned index)
     }
     else
         ASSERT(false);
+}
+
+/// COMENTAR
+void
+CoreMap::PrintCoreMap()
+{
+    CoreItem *item;
+    printf("\nCOREMAP content (%d entries)\n", NUM_PHYS_PAGES);
+    for(unsigned page = 0 ; page < NUM_PHYS_PAGES ; page++) {
+        item = GetItem(page);
+        printf("\t(%d) -> Valid: %d pid: %d vPage: %d phyPage: %d Space: %p\n", 
+            page, item->valid, item->pid, item->virtualPage, item->physicalPage, item->spaceId);
+    }
 }

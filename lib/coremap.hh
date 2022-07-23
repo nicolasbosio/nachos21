@@ -8,10 +8,12 @@
 /// limitation of liability and disclaimer of warranty provisions.
 
 #include "userprog/address_space.hh"
-#include "lib/bitmap.hh"
+#include "lib/bitmap.hh" 
+#include "lib/list.hh"
 #include "threads/lock.hh"
 #ifndef NACHOS_COREMAP__HH
 #define NACHOS_COREMAP__HH
+#define PRPOLICY_FIFO // TODO:
 
 class CoreItem 
 {
@@ -38,11 +40,6 @@ public:
 
     ///
     bool busy;
-
-#if PRPOLICY_FIFO
-    List<unsigned> fifoList;
-#endif
-
 
 private:
 };
@@ -87,10 +84,16 @@ public:
     ///
     void unlockPage(unsigned index);
 
+    ///
+    void PrintCoreMap();
+
 private:
     CoreItem *table;
     Bitmap *map;
     Lock *memLock;
+#ifdef PRPOLICY_FIFO
+    List<unsigned> *fifoList;
+#endif
 };
 
 #endif

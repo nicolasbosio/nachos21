@@ -93,9 +93,7 @@ main(void)
     const OpenFileId OUTPUT = CONSOLE_OUTPUT;
     char             line[MAX_LINE_SIZE];
     char            *argv[MAX_ARG_COUNT];
-    int noex = 1;
     for (;;) {
-        Stats();
         WritePrompt(OUTPUT);
         const unsigned lineSize = ReadLine(line, MAX_LINE_SIZE, INPUT);
         if (lineSize == 0) {
@@ -106,9 +104,6 @@ main(void)
         char *ptr = line;
         if (line[0] == '&')
         {
-            Exec("matmult-short", 0, NULL);
-            Join(Exec("matmult", 1, NULL));
-            noex = 0;
             ptr = line + 1;
             joinable = 0;
         }
@@ -127,14 +122,10 @@ main(void)
             Halt();
         }
 
-        if (noex) {
-            if (argv[0] == NULL)
-                newProc = Exec(ptr, joinable, NULL);
-            else
-                newProc = Exec(ptr, joinable, argv);
-        }
+        if (argv[0] == NULL)
+            newProc = Exec(ptr, joinable, NULL);
         else
-            noex = 1;
+            newProc = Exec(ptr, joinable, argv);
         // TODO: check for errors when calling `Exec`; this depends on how
         //       errors are reported.
         if(joinable && newProc != -1)

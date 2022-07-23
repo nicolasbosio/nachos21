@@ -71,26 +71,19 @@ Thread::Thread(const char *threadName, bool joinable, unsigned int initialPriori
 Thread::~Thread()
 {
     DEBUG('t', "Deleting thread \"%s\"\n", name);
-
     ASSERT(this != currentThread);
     if (stack != nullptr) {
         SystemDep::DeallocBoundedArray((char *) stack,
                                        STACK_SIZE * sizeof *stack);
     }
-    printf("El hilo %s es joineable %d\n", this->GetName(), this->IsJoinable());
     if(scheduler->IsZombie(this)) {
-        printf("Deleting %s on zombie list\n", this->GetName());
         scheduler->DeleteZombie(this);
     }
     
 #ifdef USER_PROGRAM
     delete this->space;
     delete this->fileTable;
-    ASSERT(tableThread->Test(this->GetPid()));
-    printf("PRE CLEAR TABLE \n");
-    tableThread->Print();
     tableThread->Clear(this->GetPid());
-    printf("Deleting %s on bitmap, pos: %d\n", this->GetName(), this->GetPid());
     arrayThread[this->pid] = nullptr;
 #endif
     delete name;
@@ -98,7 +91,6 @@ Thread::~Thread()
     char swapFileName[FILENAME_MAX];
     sprintf(swapFileName, "SWAP.%d", this->pid);
     fileSystem->Remove(swapFileName);
-    printf("FIN DESTRUCTOR THREAD\n");
 #endif
 }
 

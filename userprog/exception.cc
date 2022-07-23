@@ -443,8 +443,14 @@ SyscallHandler(ExceptionType _et)
         case SC_STATS:
         {
             DEBUG('e', "Scheduler stats requested.\n");
-            //scheduler->Print();
+            scheduler->Print();
             tableThread->Print();
+#ifdef SWAP
+            memoryCoreMap->PrintCoreMap();
+            currentThread->space->PrintPageTable();
+#endif /* SWAP */
+            MMU *mem = machine->GetMMU();
+            mem->PrintTLB();
             break;
         }
 
@@ -484,13 +490,7 @@ PageFaultHandler(ExceptionType _et)
         ASSERT(valid);
     }
 #endif
-    
     currentThread->space->SetTlbPage(pageTranslation);
-
-    //currentThread->space->PrintCoreMap(); //BORRAR
-    //currentThread->space->PrintPageTable(); //BORRAR
-    // MMU *mem = machine->GetMMU(); //BORRAR
-    // mem->PrintTLB(); //BORRAR
 }
 
 static void

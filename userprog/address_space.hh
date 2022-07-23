@@ -82,11 +82,9 @@ public:
     bool LoadPageFromSwap(TranslationEntry *pageTranslation);
 
     /// COMENTAR
-    void PrintCoreMap(); // BORRAR
-
-    /// COMENTAR
     void PrintPageTable(); //BORRAR
-#endif
+    
+#endif /* SWAP */
 
 private:
 

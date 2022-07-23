@@ -171,8 +171,7 @@ Initialize(int argc, char **argv)
             argCount = 2;
         } else if (!strcmp(*argv, "-rs")) {
             ASSERT(argc > 1);
-            // SystemDep::RandomInit(atoi(*(argv + 1)));
-            SystemDep::RandomInit(0);
+            SystemDep::RandomInit(atoi(*(argv + 1)));
               // Initialize pseudo-random number generator.
             randomYield = true;
             argCount = 2;
